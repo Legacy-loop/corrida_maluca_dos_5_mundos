@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<structure>
+  <type>pda</type><automaton>
+    <state id="0" name="q0"><x>60</x><y>120</y><initial/></state>
+    <state id="1" name="q1"><x>180</x><y>120</y></state>
+    <state id="2" name="q2"><x>300</x><y>120</y></state>
+    <state id="3" name="q3"><x>420</x><y>120</y></state>
+    <state id="4" name="q4"><x>540</x><y>120</y></state>
+    <state id="5" name="q5"><x>660</x><y>120</y></state>
+    <state id="6" name="q6"><x>800</x><y>120</y><final/></state>
+    <transition><from>0</from><to>0</to><read>t</read><pop>Z0</pop><push>TZ0</push></transition>
+    <transition><from>0</from><to>0</to><read>x</read><pop>Z0</pop><push>XZ0</push></transition>
+    <transition><from>0</from><to>0</to><read>n</read><pop>Z0</pop><push>NZ0</push></transition>
+    <transition><from>0</from><to>0</to><read>l</read><pop>Z0</pop><push>LZ0</push></transition>
+    <transition><from>0</from><to>0</to><read>a</read><pop>Z0</pop><push>AZ0</push></transition>
+    <transition><from>0</from><to>1</to><read>A</read><pop>A</pop><push/></transition>
+    <transition><from>1</from><to>2</to><read>L</read><pop>L</pop><push/></transition>
+    <transition><from>2</from><to>3</to><read>N</read><pop>N</pop><push/></transition>
+    <transition><from>3</from><to>4</to><read>X</read><pop>X</pop><push/></transition>
+    <transition><from>4</from><to>5</to><read>T</read><pop>T</pop><push/></transition>
+    <transition><from>5</from><to>6</to><read>f</read><pop>Z0</pop><push>Z0</push></transition>
+  </automaton>
+</structure>
