@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a2b">
+  <title>Corrida Maluca — Rally dos 5 Mundos</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Corrida Maluca — início">
+        <span class="brand-mark" aria-hidden="true">CM</span>
+        <span class="brand-name">Corrida Maluca</span>
+      </a>
+      <div class="top-actions" aria-label="Ações do jogo">
+        <button id="tutorialBtn" class="icon-button" type="button" aria-label="Como jogar e refazer tutorial" title="Como jogar">?</button>
+        <button id="muteBtn" class="icon-button" type="button" aria-label="Desativar som" title="Som ligado" aria-pressed="false">♫</button>
+        <button id="pauseBtn" class="icon-button" type="button" aria-label="Pausar corrida" title="Pausar">Ⅱ</button>
+        <button id="resetBtn" class="icon-button" type="button" aria-label="Reiniciar corrida" title="Reiniciar">↻</button>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Seções do jogo">
+      <button id="playTab" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="playView">🎮 Jogar</button>
+      <button id="labTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="laboratorio">🔬 Laboratório</button>
+    </nav>
+
+    <section id="playView" class="play-view" role="tabpanel" aria-labelledby="playTab">
+      <section id="startScreen" class="overlay">
+        <div class="modal hero-modal">
+          <p class="eyebrow">RALLY DOS 5 MUNDOS</p>
+          <h1>Corrida Maluca</h1>
+          <p class="start-tagline">Colete 5 itens e use-os de trás para frente.</p>
+          <div class="stack-animation" aria-label="Os itens entram na pilha e saem na ordem inversa">
+            <span class="animated-block block-one">T</span>
+            <span class="animated-block block-two">X</span>
+            <span class="animated-block block-three">A</span>
+            <span class="animation-base">SUA PILHA</span>
+          </div>
+          <button id="startBtn" class="button primary big" type="button">JOGAR</button>
+          <button id="skipTutorial" class="text-button how-to-button" type="button">Como jogar</button>
+          <button id="challengeEntry" class="text-button hidden" type="button">Já sei jogar → Desafio</button>
+        </div>
+      </section>
+
+      <section id="challengeSelect" class="overlay hidden" aria-labelledby="challengeSelectTitle">
+        <div class="modal challenge-modal">
+          <p class="eyebrow">MODO DESAFIO</p>
+          <h2 id="challengeSelectTitle">Escolha sua fase</h2>
+          <div id="levelCards" class="level-cards"></div>
+          <div class="modal-actions"><button id="planSelectedLevel" class="button primary" type="button" disabled>Planejar fase</button><button id="backFromLevels" class="text-button" type="button">Voltar</button></div>
+        </div>
+      </section>
+
+      <section id="briefingView" class="overlay hidden" aria-labelledby="briefingTitle">
+        <div class="modal briefing-modal">
+          <header class="briefing-heading"><div><p class="eyebrow">PLANEJE ANTES DA LARGADA</p><h2 id="briefingTitle">Briefing</h2></div><span id="briefingLevel"></span></header>
+          <p class="briefing-instruction">Escolha peças para superar cada portal.</p>
+          <section class="briefing-block route-block" aria-label="Rota da fase">
+            <div class="briefing-block-heading"><h3>Rota</h3><details id="routeGuide" class="route-guide"><summary>Guia do rally</summary><div id="routeGuideContent" class="route-guide-content"></div></details></div>
+            <div id="briefingRoute" class="briefing-route"></div>
+          </section>
+          <section class="briefing-block inventory-block" aria-label="Estoque da garagem">
+            <div class="briefing-block-heading"><h3>Estoque da garagem</h3><span id="inventoryHint">Toque para adicionar</span></div>
+            <div id="challengeStock" class="challenge-stock"></div>
+          </section>
+          <section class="briefing-block plan-block" aria-label="Seu plano em ordem de coleta">
+            <div class="briefing-block-heading"><h3>Seu plano</h3><span>topo</span></div>
+            <div class="plan-stack-wrap"><div id="planStack" class="plan-stack"><span class="plan-empty">Escolha itens do estoque</span></div><span class="plan-base">BASE</span></div>
+            <div class="plan-tools"><button id="undoPlan" class="text-button" type="button" disabled>Desfazer</button><button id="clearPlan" class="text-button" type="button" disabled>Limpar</button></div>
+          </section>
+          <button id="confirmPlan" class="button primary big" type="button" disabled>Confirmar plano e ir à garagem</button>
+        </div>
+      </section>
+
+      <section id="routeReview" class="overlay hidden" aria-labelledby="routeReviewTitle">
+        <div class="modal challenge-modal">
+          <p class="eyebrow">CONSULTA DE ROTA</p><h2 id="routeReviewTitle">Sua rota</h2>
+          <div id="routeReviewContent" class="briefing-route"></div>
+          <button id="closeRouteReview" class="button primary" type="button">Voltar à corrida</button>
+        </div>
+      </section>
+
+      <section class="race-layout">
+        <div class="race-main">
+          <header class="race-hud">
+            <div class="world-label"><span class="eyebrow">MUNDO</span><strong id="worldName">Garagem</strong></div>
+            <strong id="objective" class="mission">Pegue o ① item: Combustível térmico</strong>
+            <ol id="worldTrail" class="world-trail" aria-label="Progresso da rota"></ol>
+            <button id="replanBtn" class="route-review hidden" type="button">Refazer plano</button>
+          </header>
+          <div class="canvas-wrap">
+            <canvas id="gameCanvas" width="900" height="560" aria-label="Mapa da corrida"></canvas>
+            <div id="toast" class="toast" role="status" aria-live="polite"></div>
+            <div id="pauseOverlay" class="pause-overlay hidden"><span>PAUSADO</span><button id="resumeBtn" class="button primary" type="button">Continuar</button></div>
+            <button id="actionBtn" class="button primary action-button hidden" type="button">USAR</button>
+          </div>
+          <div id="keyHint" class="key-hint">W A S D ou setas para dirigir</div>
+          <div class="touch-controls" aria-label="Controles de toque">
+            <button id="touchPad" class="touch-pad" type="button" aria-label="Controle direcional. Toque no i central para abrir ou fechar detalhes técnicos." title="Toque no i central para detalhes técnicos"><span aria-hidden="true">▲<br>◀　i　▶<br>▼</span></button>
+            <button id="touchAction" class="button primary touch-action hidden" type="button">USAR</button>
+          </div>
+        </div>
+
+        <aside class="stack-panel">
+          <div class="stack-heading"><h2>Sua pilha</h2><span>topo</span></div>
+          <div id="stack" class="stack" aria-label="Sua pilha de equipamentos"></div>
+          <details id="technicalDrawer" class="technical-drawer">
+            <summary>Detalhes técnicos <kbd>T</kbd></summary>
+            <div class="technical-content">
+              <div class="technical-stats">
+                <span>Estado <strong id="stateValue">q0</strong></span>
+                <span>Último símbolo <strong id="symbolValue">—</strong></span>
+                <span>Operação <strong id="operationValue">—</strong></span>
+                <span>Topo <strong id="topValue">Z0</strong></span>
+                <span id="stackCount">1 elemento</span>
+                <span id="statusBadge" class="badge running">PRONTO</span>
+              </div>
+              <p id="message" class="message">A corrida está pronta.</p>
+              <h3>Fita processada</h3><div id="tape" class="tape"></div>
+              <div class="panel-title"><h3>Histórico</h3><button id="clearLog" class="text-button" type="button">Limpar</button></div>
+              <ol id="history" class="history"></ol>
+            </div>
+          </details>
+        </aside>
+      </section>
+    </section>
+
+    <section id="laboratorio" class="laboratory hidden" role="tabpanel" aria-labelledby="labTab">
+      <header class="lab-heading"><div><span class="eyebrow">APRENDA EXPERIMENTANDO</span><h1>Laboratório do autômato</h1></div><p title="Autômato com pilha">A mesma lógica da corrida, para testar qualquer sequência.</p></header>
+      <section class="lab-primary panel">
+        <label class="sequence-label" for="sequenceInput">Sua sequência</label>
+        <input id="sequenceInput" value="txnlaALNXTf" aria-label="Sequência de entrada" autocomplete="off" spellcheck="false">
+        <button id="runSequence" class="button primary" type="button">Executar</button>
+        <button id="stepSequence" class="button secondary" type="button">Passo a passo</button>
+        <button id="resetSimulator" class="button outline" type="button">Reiniciar</button>
+      </section>
+      <section class="examples" aria-label="Exemplos de sequências">
+        <button class="example-chip" type="button" data-example="txnlaALNXTf"><span>✔</span> Aceita</button>
+        <button class="example-chip" type="button" data-example="txnlaALNXTL"><span>✖</span> Símbolo inválido</button>
+        <button class="example-chip" type="button" data-example="txnlaANXTf"><span>↕</span> Ordem errada</button>
+        <button class="example-chip" type="button" data-example="txnlaALNXT"><span>…</span> Incompleta</button>
+        <button class="example-chip" type="button" data-example="tlnxaALNXTf"><span>✖</span> Coleta fora de ordem</button>
+      </section>
+      <section class="sim-keyboard" aria-label="Símbolos para montar a sequência">
+        <div class="keyboard-group"><span class="keyboard-label">GUARDAR NA PILHA</span><div class="keyboard-buttons">
+          <button type="button" class="symbol-key push-key" data-sequence-symbol="t" aria-label="Adicionar t — combustível térmico"><b>t</b><small>Térmico</small></button>
+          <button type="button" class="symbol-key push-key" data-sequence-symbol="x" aria-label="Adicionar x — nitro"><b>x</b><small>Nitro</small></button>
+          <button type="button" class="symbol-key push-key" data-sequence-symbol="n" aria-label="Adicionar n — pneus de neve"><b>n</b><small>Neve</small></button>
+          <button type="button" class="symbol-key push-key" data-sequence-symbol="l" aria-label="Adicionar l — pneus lameiros"><b>l</b><small>Lameiro</small></button>
+          <button type="button" class="symbol-key push-key" data-sequence-symbol="a" aria-label="Adicionar a — pneus de areia"><b>a</b><small>Areia</small></button>
+        </div></div>
+        <div class="keyboard-group"><span class="keyboard-label">USAR E FINALIZAR</span><div class="keyboard-buttons">
+          <button type="button" class="symbol-key pop-key" data-sequence-symbol="A"><b>A</b><small>Areia</small></button>
+          <button type="button" class="symbol-key pop-key" data-sequence-symbol="L"><b>L</b><small>Lameiro</small></button>
+          <button type="button" class="symbol-key pop-key" data-sequence-symbol="N"><b>N</b><small>Neve</small></button>
+          <button type="button" class="symbol-key pop-key" data-sequence-symbol="X"><b>X</b><small>Nitro</small></button>
+          <button type="button" class="symbol-key pop-key" data-sequence-symbol="T"><b>T</b><small>Térmico</small></button>
+          <button type="button" class="symbol-key finish-key" data-sequence-symbol="f"><b>f</b><small>Chegada</small></button>
+        </div></div>
+      </section>
+      <details id="advancedOptions" class="advanced-options">
+        <summary>Opções avançadas</summary>
+        <div class="advanced-controls">
+          <label for="simulatorRoute">Rota</label>
+          <select id="simulatorRoute" class="route-select">
+            <option value="classic">Clássica</option>
+            <option value="warmup">Fase 1 — Aquecimento</option>
+            <option value="real-race">Fase 2 — Corrida de verdade</option>
+            <option value="crazy-rally">Fase 3 — Rally maluco</option>
+          </select>
+          <label class="mode-toggle"><input id="liveMode" type="checkbox"> Modo ao vivo</label>
+          <label for="simSpeed">Velocidade</label><input id="simSpeed" class="speed" type="range" min="80" max="900" step="40" value="360">
+          <button id="nextSymbol" class="button secondary" type="button">Avançar 1</button>
+          <button id="undoSequence" class="button secondary" type="button">Voltar</button>
+          <button id="deleteLastSymbol" class="button outline" type="button">Apagar último</button>
+          <button id="clearSequence" class="button outline" type="button">Limpar</button>
+        </div>
+      </details>
+      <section class="simulator-visuals">
+        <section class="sim-visual-card panel"><div class="panel-title"><h2>Sua pilha</h2><span id="simState" title="Estado e topo">q0 · topo Z0</span></div><div id="simStack" class="stack sim-stack" aria-label="Pilha do simulador"></div></section>
+        <section class="sim-visual-card panel"><div class="panel-title"><h2>Sequência</h2><span id="simPointer">posição 0</span></div><div id="simTape" class="sim-tape" aria-label="Símbolos da sequência"></div><p id="simLast" class="message">Pronta para executar.</p></section>
+      </section>
+      <div class="sim-result"><span id="simStatus" class="result-running" role="status">Aguardando execução</span><span id="simDetail">Estado q0 · pilha Z0</span></div>
+      <ol id="simHistory" class="history compact"></ol>
+      <section class="lab-reference panel">
+        <div class="reference-tabs" role="tablist" aria-label="Referência do autômato">
+          <button id="tableTab" class="reference-tab active" type="button" role="tab" aria-selected="true" aria-controls="transitionTableView">Tabela</button>
+          <button id="diagramTab" class="reference-tab" type="button" role="tab" aria-selected="false" aria-controls="diagramView">Diagrama</button>
+        </div>
+        <section id="transitionTableView" role="tabpanel" aria-labelledby="tableTab" class="transition-table-wrap">
+          <table class="transition-table"><thead><tr><th>Estado</th><th>Entrada</th><th>Topo</th><th>Operação</th><th>Próximo estado</th></tr></thead><tbody id="transitionTableBody">
+            <tr data-transition="push"><td>q0</td><td>t, x, n, l, a</td><td>qualquer</td><td>PUSH T, X, N, L, A</td><td>q0</td></tr>
+            <tr data-transition="A"><td>q0</td><td>A</td><td>A</td><td>POP A</td><td>q1</td></tr>
+            <tr data-transition="L"><td>q1</td><td>L</td><td>L</td><td>POP L</td><td>q2</td></tr>
+            <tr data-transition="N"><td>q2</td><td>N</td><td>N</td><td>POP N</td><td>q3</td></tr>
+            <tr data-transition="X"><td>q3</td><td>X</td><td>X</td><td>POP X</td><td>q4</td></tr>
+            <tr data-transition="T"><td>q4</td><td>T</td><td>T</td><td>POP T</td><td>q5</td></tr>
+            <tr data-transition="f"><td>q5</td><td>f</td><td>Z0</td><td>FINALIZA</td><td>q6</td></tr>
+          </tbody></table>
+        </section>
+        <section id="diagramView" role="tabpanel" aria-labelledby="diagramTab" class="pda-diagram hidden">
+          <svg id="pdaSvg" viewBox="0 0 950 180" role="img" aria-label="Diagrama do autômato">
+            <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="currentColor"/></marker></defs>
+            <path class="edge active-edge" data-edge="push" d="M86 62 C35 8,135 8,86 62"/><text x="86" y="12">t,x,n,l,a · ε/PUSH</text>
+            <path class="edge" data-edge="A" d="M125 88 L242 88"/><text x="183" y="75">A,A/ε</text>
+            <path class="edge" data-edge="L" d="M270 88 L387 88"/><text x="328" y="75">L,L/ε</text>
+            <path class="edge" data-edge="N" d="M415 88 L532 88"/><text x="473" y="75">N,N/ε</text>
+            <path class="edge" data-edge="X" d="M560 88 L677 88"/><text x="618" y="75">X,X/ε</text>
+            <path class="edge" data-edge="T" d="M705 88 L812 88"/><text x="758" y="75">T,T/ε</text>
+            <path class="edge" data-edge="f" d="M840 88 L905 88"/><text x="872" y="75">f,Z0/Z0</text>
+            <g class="state-node active" data-state="q0"><circle cx="86" cy="88" r="25"/><text x="86" y="93">q0</text></g>
+            <g class="state-node" data-state="q1"><circle cx="256" cy="88" r="25"/><text x="256" y="93">q1</text></g>
+            <g class="state-node" data-state="q2"><circle cx="401" cy="88" r="25"/><text x="401" y="93">q2</text></g>
+            <g class="state-node" data-state="q3"><circle cx="546" cy="88" r="25"/><text x="546" y="93">q3</text></g>
+            <g class="state-node" data-state="q4"><circle cx="691" cy="88" r="25"/><text x="691" y="93">q4</text></g>
+            <g class="state-node" data-state="q5"><circle cx="826" cy="88" r="25"/><text x="826" y="93">q5</text></g>
+            <g class="state-node final-node" data-state="q6"><circle cx="930" cy="88" r="24"/><circle cx="930" cy="88" r="19"/><text x="930" y="93">q6</text></g>
+          </svg>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <div id="coachShade" class="coach-shade hidden" aria-hidden="true"></div>
+  <section id="coachmark" class="coachmark hidden" role="status" aria-live="polite">
+    <span class="coach-arrow" aria-hidden="true">◆</span>
+    <div id="coachText" class="coach-text"></div>
+    <div id="keyCaps" class="keycaps hidden" aria-label="Teclas de direção"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>ou setas</span></div>
+    <button id="coachSkip" class="coach-skip" type="button">Pular tutorial</button>
+  </section>
+
+  <section id="endScreen" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+    <div class="modal end-modal"><p id="endEyebrow" class="eyebrow">FIM DE JOGO</p><h2 id="endTitle">Corrida aceita!</h2><p id="endMessage"></p>
+      <div id="failureComparison" class="failure-comparison hidden"><div><span>Era preciso</span><strong id="failureRequired"></strong></div><span aria-hidden="true">×</span><div><span>No topo</span><strong id="failureTop"></strong></div></div>
+      <button id="showSolution" class="text-button hidden" type="button">Mostrar solução</button>
+      <div class="modal-actions end-actions">
+        <button id="endActionPrimary" class="button primary" type="button">Refazer tutorial</button>
+        <button id="endActionSecondary" class="button secondary" type="button">Ir ao Laboratório</button>
+        <button id="endActionTertiary" class="button outline" type="button">Começar o desafio</button>
+      </div>
+    </div>
+  </section>
+  <div id="errorBanner" class="error-banner hidden" role="alert"></div>
+  <aside id="debugPanel" class="debug-panel hidden" aria-label="Diagnóstico"><strong>DEBUG <span id="debugVersion"></span></strong><span id="debugModules"></span><span id="debugPlayer"></span><span id="debugPda"></span><span id="debugKey"></span><span id="debugFps"></span></aside>
+
+  <script defer src="js/constants.js"></script>
+  <script defer src="js/challenge.js"></script>
+  <script defer src="js/maps.js"></script>
+  <script defer src="js/pda.js"></script>
+  <script defer src="js/player.js"></script>
+  <script defer src="js/renderer.js"></script>
+  <script defer src="js/ui.js"></script>
+  <script defer src="js/game.js"></script>
+  <script defer src="js/sequenceSimulator.js"></script>
+  <script defer src="js/main.js"></script>
+</body>
+</html>

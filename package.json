@@ -1,0 +1,11 @@
+{
+  "name": "corrida-maluca-rally-dos-5-mundos",
+  "private": true,
+  "scripts": {
+    "test": "node tests/pda.test.js && node tests/maps.test.js && node tests/challenge.test.js",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}
