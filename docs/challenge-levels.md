@@ -15,6 +15,10 @@ O plano vencedor é a rota reversa. Estoque adicional pode ser escolhido como
 distrator; se sobrar equipamento após o último portal, a chegada é rejeitada.
 As peças duplicadas da fase difícil são instâncias distintas, embora usem o
 mesmo símbolo do PDA.
+Cada mundo da rota usa um circuito com barreiras e waypoints próprios. Quando
+o Deserto aparece pela segunda vez no Rally maluco, a pista é espelhada
+verticalmente para manter o tema e oferecer uma variante visual diferente.
+Veja [docs/circuits.md](circuits.md) para os desenhos e métricas.
 
 ## Resultados possíveis
 
@@ -31,3 +35,9 @@ e transições dessa rota. A rota e o plano tentado são carregados pelo botão
 
 Para abrir diretamente todas as fases durante testes, use
 `index.html?unlockAll=1`.
+
+Ao vencer o Rally maluco, aparece a tela de campeã: um troféu vetorial com
+nome acessível, estatísticas das três fases e ações para repetir o desafio,
+voltar ao jogo ou estudar o plano no Laboratório. A conquista fica salva e
+surge como insígnia na seleção de fases; confete e fanfarra são desativados
+com a preferência por movimento reduzido.
