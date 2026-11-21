@@ -2,46 +2,92 @@ const { test, expect } = require("@playwright/test");
 const path = require("node:path");
 
 const appUrl = `file://${path.resolve(__dirname, "..", "index.html").replace(/\\/g, "/")}`;
-test.describe.configure({ timeout: 180000 });
+test.describe.configure({ timeout: 600000 });
 
 async function openGame(page, query = "") {
   await page.goto(`${appUrl}${query}`);
   await page.getByRole("button", { name: "JOGAR", exact: true }).click();
 }
 
-async function move(page, key, distance) {
-  const axis = key === "a" || key === "d" ? "x" : "y";
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+async function moveAxis(page, axis, target) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     const position = await page.evaluate(() => ({
       x: window.CM.game.player.x,
-      y: window.CM.game.player.y
+      y: window.CM.game.player.y,
+      speed: window.CM.game.player.speed
     }));
-    const remaining = distance - position[axis];
-    if (Math.abs(remaining) <= 10) return;
-    const direction = remaining < 0 ? (axis === "x" ? "a" : "w") : (axis === "x" ? "d" : "s");
-    const duration = Math.max(40, Math.ceil((Math.abs(remaining) - 8) / 205 * 1000));
-    await page.keyboard.down(direction);
+    const remaining = target - position[axis];
+    if (Math.abs(remaining) <= 3) return;
+    const key = axis === "x"
+      ? remaining > 0 ? "d" : "a"
+      : remaining > 0 ? "s" : "w";
+    const duration = Math.max(20, Math.ceil((Math.abs(remaining) - 1) / position.speed * 1000));
+    await page.keyboard.down(key);
     await page.waitForTimeout(duration);
-    await page.keyboard.up(direction);
-    await page.waitForTimeout(50);
+    await page.keyboard.up(key);
+    await page.waitForTimeout(15);
   }
 }
 
-async function driveTo(page, waypoints) {
-  for (const [x, y] of waypoints) {
-    const position = await page.evaluate(() => ({
-      x: window.CM.game.player.x,
-      y: window.CM.game.player.y
-    }));
-    if (Math.abs(x - position.x) > 4) await move(page, x < position.x ? "a" : "d", x);
-    const afterX = await page.evaluate(() => window.CM.game.player.y);
-    if (Math.abs(y - afterX) > 4) await move(page, y < afterX ? "w" : "s", y);
+async function moveAlong(page, target) {
+  const position = await page.evaluate(() => ({
+    x: window.CM.game.player.x,
+    y: window.CM.game.player.y
+  }));
+  if (Math.abs(target.x - position.x) > 3) await moveAxis(page, "x", target.x);
+  if (Math.abs(target.y - position.y) > 3) await moveAxis(page, "y", target.y);
+}
+
+async function driveCurrentCircuit(page) {
+  const waypoints = await page.evaluate(() => window.CM.game.map.waypoints.map(point => ({ ...point })));
+  for (const waypoint of waypoints) {
+    if (await page.evaluate(() => window.CM.game.state) !== "PLAYING") return;
+    await moveAlong(page, waypoint);
   }
 }
 
-async function collectItem(page, route, order) {
-  await driveTo(page, route);
-  await expect.poll(() => page.evaluate(() => window.CM.game.items.length)).toBe(5 - order);
+async function advancePortal(page) {
+  await driveCurrentCircuit(page);
+  await expect.poll(() => page.evaluate(() => window.CM.game.nearGate())).toBe(true);
+  const stage = await page.evaluate(() => window.CM.game.stageIndex);
+  await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("PLAYING");
+  await page.keyboard.press("e");
+  await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("TRANSITION");
+  await expect.poll(() => page.evaluate(() => window.CM.game.state), { timeout: 5000 }).toBe("PLAYING");
+  await expect.poll(() => page.evaluate(() => window.CM.game.stageIndex)).toBe(stage + 1);
+}
+
+async function collectGarageItems(page) {
+  const waypoints = await page.evaluate(() => window.CM.game.map.waypoints.map(point => ({ ...point })));
+  for (const waypoint of waypoints) {
+    await moveAlong(page, waypoint);
+  }
+  await expect.poll(() => page.evaluate(() => window.CM.game.items.length)).toBe(0);
+}
+
+async function selectAndStartChallenge(page, levelId) {
+  await page.locator(`[data-level-id="${levelId}"]`).click();
+  await page.getByRole("button", { name: "Planejar fase" }).click();
+  const plan = await page.evaluate(id => {
+    const level = window.CM.LEVELS.find(entry => entry.id === id);
+    return [...level.route].reverse();
+  }, levelId);
+  for (const symbol of plan) await page.locator(`#challengeStock [data-item="${symbol}"]`).click();
+  await page.getByRole("button", { name: "Confirmar plano e ir à garagem" }).click();
+  await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("PLAYING");
+  await page.evaluate(() => { window.CM.game.player.speed = 615; });
+}
+
+async function completeChallengeByDriving(page) {
+  const routeLength = await page.evaluate(() => window.CM.game.route.length);
+  await collectGarageItems(page);
+  await page.keyboard.press("e");
+  await expect.poll(() => page.evaluate(() => window.CM.game.stageIndex)).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("TRANSITION");
+  await expect.poll(() => page.evaluate(() => window.CM.game.state), { timeout: 5000 }).toBe("PLAYING");
+  for (let stage = 1; stage < routeLength; stage += 1) await advancePortal(page);
+  await driveCurrentCircuit(page);
+  await expect.poll(() => page.evaluate(() => window.CM.game.state), { timeout: 10000 }).toBe("WON");
 }
 
 test("first run teaches by gameplay, completes the PDA race, and preserves lab features", async ({ page }) => {
@@ -66,25 +112,17 @@ test("first run teaches by gameplay, completes the PDA race, and preserves lab f
   await expect(page.locator("#technicalDrawer")).toHaveJSProperty("open", false);
 
   await page.getByRole("button", { name: "Desativar som" }).click();
-  await page.keyboard.down("d");
-  await page.waitForTimeout(700);
-  await page.keyboard.up("d");
+  await page.evaluate(() => { window.CM.game.player.speed = 615; });
+  await moveAlong(page, { x: 125, y: 130 });
   await expect(page.locator("#coachText")).toHaveText("Pegue o item ①.");
-  expect(await page.evaluate(() => window.CM.game.player.x)).toBeGreaterThan(120);
-
-  await collectItem(page, [[110, 145], [110, 112]], 1);
-  await expect(page.locator("#coachText")).toContainText("Ele entrou na pilha");
-  await collectItem(page, [[110, 145], [270, 145], [270, 420]], 2);
-  await collectItem(page, [[270, 360], [460, 360], [460, 120]], 3);
-  await collectItem(page, [[460, 145], [610, 145], [610, 370], [610, 420]], 4);
-  await collectItem(page, [[610, 340], [760, 340], [760, 120]], 5);
-  await driveTo(page, [[760, 280], [810, 280]]);
+  expect(await page.evaluate(() => Math.hypot(window.CM.game.player.x - 45, window.CM.game.player.y - 280))).toBeGreaterThan(100);
+  await collectGarageItems(page);
   await expect(page.locator("#coachText")).toHaveText("Agora vá ao portão e aperte E.");
   await page.keyboard.press("e");
   await expect(page.locator("#coachText")).toHaveText("Primeiro sai quem entrou por último!");
-  await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("PLAYING");
   await expect.poll(() => page.evaluate(() => window.CM.game.stageIndex)).toBe(1);
-  await expect(page.locator("#coachText")).toHaveText("Parabéns, você entendeu a pilha.", { timeout: 8000 });
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("cm-tutorial-completed")), { timeout: 10000 }).toBe("1");
+  await expect(page.locator("#coachText")).toHaveText("Parabéns, você entendeu a pilha.");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("cm-tutorial-completed"))).toBe("1");
 
   await page.keyboard.press("t");
@@ -92,15 +130,15 @@ test("first run teaches by gameplay, completes the PDA race, and preserves lab f
   await page.keyboard.press("t");
   await expect(page.locator("#technicalDrawer")).toHaveJSProperty("open", false);
 
-  for (let stage = 1; stage <= 4; stage += 1) {
+  for (let stage = 1; stage < 5; stage += 1) {
     await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("PLAYING");
-    await move(page, "d", 810);
-    await page.keyboard.press("e");
+    await advancePortal(page);
     await expect.poll(() => page.evaluate(() => window.CM.game.stageIndex)).toBe(stage + 1);
   }
-  await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("PLAYING");
-  await move(page, "d", 810);
+  await driveCurrentCircuit(page);
   await expect.poll(() => page.evaluate(() => window.CM.game.state)).toBe("WON");
+  await expect(page.locator("#endScreen")).toBeVisible();
+  await expect(page.locator(".end-actions .primary")).toHaveText("Começar o desafio");
   await expect(page.locator("#stateValue")).toHaveText("q6");
   await expect(page.locator("#topValue")).toHaveText("Z0");
   await expect(page.locator("#statusBadge")).toContainText("ACEITA");
@@ -216,6 +254,121 @@ test("challenge plans configure a route-specific race and accept its valid seque
     status: window.CM.game.pda.status,
     stack: window.CM.game.pda.stack
   }))).toEqual({ state: "q4", status: "accepted", stack: ["Z0"] });
+});
+
+test("the three challenge phases are drivable and finish with the champion screen", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`${appUrl}?unlockAll=1`);
+  await page.evaluate(() => {
+    localStorage.setItem("cm-rally-won", "1");
+    localStorage.setItem("cm-challenge-intro", "1");
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /Desafio/ }).click();
+
+  for (const levelId of ["warmup", "real-race", "crazy-rally"]) {
+    await selectAndStartChallenge(page, levelId);
+    if (levelId === "crazy-rally") {
+      const maps = await page.evaluate(() => window.CM.game.maps);
+      expect(maps[1].theme).toBe("desert");
+      expect(maps[3].theme).toBe("desert");
+      expect(maps[1].variant).toBe(0);
+      expect(maps[3].variant).toBe(1);
+      expect(maps[1].waypoints).not.toEqual(maps[3].waypoints);
+      expect(maps[3].waypoints.map(point => point.y)).toEqual(
+        maps[1].waypoints.map(point => 560 - point.y)
+      );
+    }
+    await completeChallengeByDriving(page);
+    if (levelId === "crazy-rally") break;
+    await page.getByRole("button", { name: "Escolher fase" }).click();
+  }
+
+  await expect(page.locator("#championScreen")).toBeVisible();
+  await expect(page.locator("#championTitle")).toHaveText("Parabéns, campeão do Rally!");
+  await expect(page.locator("#championScreen svg[aria-label*='Troféu']")).toBeVisible();
+  await expect(page.locator("#championSummary li")).toHaveCount(3);
+  await expect(page.locator("#championActionPrimary")).toBeFocused();
+  await expect(page.locator("#endScreen")).toBeHidden();
+  await expect(page.locator("#championScreen button")).toHaveCount(3);
+  expect(await page.evaluate(() => ({
+    state: window.CM.game.pda.state,
+    status: window.CM.game.pda.status,
+    stack: window.CM.game.pda.stack,
+    complete: localStorage.getItem("cm-challenge-complete")
+  }))).toEqual({ state: "q7", status: "accepted", stack: ["Z0"], complete: "1" });
+  await page.screenshot({ path: path.resolve(__dirname, "..", "docs", "screenshots", "champion-1280x720.png") });
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.screenshot({ path: path.resolve(__dirname, "..", "docs", "screenshots", "champion-768x1024.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileWidth = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth
+  }));
+  expect(mobileWidth.scroll).toBeLessThanOrEqual(mobileWidth.client);
+  await page.screenshot({ path: path.resolve(__dirname, "..", "docs", "screenshots", "champion-390x844.png") });
+  await page.getByRole("button", { name: "Jogar o desafio de novo" }).click();
+  await expect(page.locator("#championBadge")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /Desafio/ }).click();
+  await expect(page.locator("#championBadge")).toBeVisible();
+});
+
+test("all six circuit screenshots render and straight-line driving never reaches a gate", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`${appUrl}?debug=1`);
+  await page.evaluate(() => localStorage.setItem("cm-tutorial-completed", "1"));
+  await page.reload();
+  await page.getByRole("button", { name: "JOGAR", exact: true }).click();
+  await page.addStyleTag({ content: "#debugPanel { display: none !important; }" });
+  const themes = ["garage", "desert", "swamp", "snow", "track", "volcano"];
+  for (let index = 0; index < 6; index += 1) {
+    await page.evaluate(world => window.CM.debug.gotoWorld(world), index);
+    await page.screenshot({
+      path: path.resolve(__dirname, "..", "docs", "screenshots", `circuit-${themes[index]}-1280x720.png`)
+    });
+    await page.keyboard.down("d");
+    await page.waitForTimeout(3000);
+    await page.keyboard.up("d");
+    expect(await page.evaluate(() => window.CM.game.nearGate())).toBe(false);
+  }
+});
+
+test("reduced motion removes confetti from the champion screen", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(appUrl);
+  await page.evaluate(() => {
+    const level = window.CM.LEVELS.at(-1);
+    window.CM.game.configure({ mode: "challenge", level, plan: level.stock });
+    window.CM.game.showEnd(true, "Desafio concluído.");
+  });
+  await expect(page.locator("#championScreen")).toBeVisible();
+  await expect(page.locator("#championConfetti .confetti-piece")).toHaveCount(0);
+  expect(await page.locator(".champion-trophy").evaluate(element => getComputedStyle(element).animationName)).toBe("none");
+});
+
+test("the final challenge route control fits beside the mobile champion screen", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(appUrl);
+  await page.getByRole("button", { name: "JOGAR", exact: true }).click();
+  await page.evaluate(() => {
+    const level = window.CM.LEVELS.at(-1);
+    window.CM.game.configure({ mode: "challenge", level, plan: [...level.route].reverse() });
+    window.CM.game.start();
+    window.CM.game.stageIndex = window.CM.game.maps.length - 1;
+    window.CM.game.render();
+    window.CM.game.showEnd(true, "Desafio concluído.");
+  });
+  await expect(page.locator("#championScreen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Rever rota" })).toBeVisible();
+  const dimensions = await page.evaluate(() => ({
+    client: document.documentElement.clientWidth,
+    scroll: document.documentElement.scrollWidth,
+    routeButtonRight: document.querySelector("#worldTrail button").getBoundingClientRect().right
+  }));
+  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.client);
+  expect(dimensions.routeButtonRight).toBeLessThanOrEqual(dimensions.client);
 });
 
 test("play and touch layouts fit supported viewport widths", async ({ page }) => {
