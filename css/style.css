@@ -83,6 +83,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-vi
 .world-trail li { display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #52677e; border-radius: 50%; background: #1b2a3c; color: var(--muted); font-size: 10px; font-weight: 900; transition: .2s ease; }
 .world-trail li.current { transform: scale(1.16); border-color: var(--accent); background: #604d1d; color: white; box-shadow: 0 0 12px #ffd04a66; }
 .world-trail li.completed { border-color: #31875e; background: #1d6948; color: white; }
+.world-trail .route-review { display: grid; width: 100%; height: 100%; min-height: 0; place-items: center; padding: 0; font-size: 12px; }
 .route-review { min-height: 32px; padding: 5px 10px; border: 1px solid var(--accent); border-radius: 999px; background: #604d1d; color: white; font-size: 10px; font-weight: 850; cursor: pointer; }
 .canvas-wrap { position: relative; overflow: hidden; border: 1px solid #ffffff27; border-radius: 11px; background: #1d2b37; }
 .canvas-wrap canvas { display: block; width: 100%; height: auto; aspect-ratio: 900 / 560; }
@@ -209,6 +210,20 @@ kbd { padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; bac
 .settings-details select { width: 100%; margin-top: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-soft); color: var(--text); }
 .end-modal h2 { margin: 8px 0; font-size: 34px; }
 .end-modal > p:not(.eyebrow) { margin: 12px 0 20px; color: #dae4ed; }
+.champion-badge { margin-left: 8px; padding: 3px 8px; border: 1px solid #d6a52d; border-radius: 999px; background: #604d1d; color: #fff0a0; font-size: 9px; letter-spacing: .4px; white-space: nowrap; }
+.champion-overlay { isolation: isolate; overflow-x: hidden; }
+.champion-modal { position: relative; z-index: 1; width: min(570px, 100%); padding: clamp(18px, 4vw, 30px); }
+.champion-trophy { display: block; width: 112px; height: 112px; margin: -4px auto 4px; filter: drop-shadow(0 9px 18px #ffbd2c55); animation: trophy-arrive .7s cubic-bezier(.2,.8,.2,1) both, trophy-glow 2.4s ease-in-out .7s infinite alternate; }
+.champion-modal h2 { margin: 7px 0; font-size: clamp(25px, 5vw, 36px); }
+.champion-message { margin: 9px auto 16px; color: #dae4ed; }
+.champion-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 12px 0 18px; padding: 0; list-style: none; }
+.champion-summary li { display: grid; gap: 4px; min-width: 0; padding: 9px 6px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-soft); }
+.champion-summary strong { overflow-wrap: anywhere; color: #fff0a0; font-size: 11px; }
+.champion-summary span { color: var(--muted); font-size: 10px; }
+.champion-actions { display: grid; grid-template-columns: 1fr; }
+.champion-actions .button { width: 100%; }
+.champion-confetti { position: fixed; z-index: 0; inset: 0; overflow: hidden; contain: paint; pointer-events: none; }
+.confetti-piece { position: absolute; top: -18px; left: var(--confetti-x); width: 8px; height: 13px; border-radius: 2px; background: var(--confetti-color); animation: confetti-fall 2.8s linear var(--confetti-delay) both; }
 .modal-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
 .end-actions { flex-direction: column; }
 .end-actions .button { width: 100%; }
@@ -346,6 +361,13 @@ kbd { padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; bac
   .route-connector { min-width: 58px; }
   .stock-card { min-width: calc(50% - 5px); flex: 1; }
   .end-modal { padding: 18px; }
+  .champion-modal { padding: 16px 13px; }
+  .champion-trophy { width: 88px; height: 88px; }
+  .champion-message { font-size: 13px; }
+  .champion-summary { grid-template-columns: 1fr; gap: 5px; margin: 9px 0 12px; }
+  .champion-summary li { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 7px 9px; text-align: left; }
+  .champion-summary span { white-space: nowrap; }
+  .champion-actions { gap: 6px; }
   .examples { gap: 5px; }
   .example-chip { min-height: 29px; padding: 4px 8px; font-size: 10px; }
   .sim-keyboard { gap: 6px; }
@@ -366,4 +388,9 @@ kbd { padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; bac
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .champion-trophy { animation: none; }
+  .champion-confetti { display: none; }
 }
+@keyframes trophy-arrive { from { opacity: 0; transform: translateY(18px) scale(.7) rotate(-8deg); } to { opacity: 1; transform: none; } }
+@keyframes trophy-glow { from { filter: drop-shadow(0 6px 12px #ffbd2c33); } to { filter: drop-shadow(0 9px 24px #ffbd2c99); } }
+@keyframes confetti-fall { to { transform: translate3d(0, 110vh, 0) rotate(620deg); opacity: .2; } }
