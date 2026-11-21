@@ -20,7 +20,7 @@
     { state: "q5", name: "Vulcão", theme: "volcano", color: "#9d4038", required: "f", objective: "Atravesse a linha de chegada." }
   ];
   return {
-    VERSION: "3.0.0",
+    VERSION: "3.1.0",
     WIDTH: 900,
     HEIGHT: 560,
     PLAYER_RADIUS: 13,

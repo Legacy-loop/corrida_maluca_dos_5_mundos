@@ -41,8 +41,10 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "route-review";
+        button.setAttribute("aria-label", "Rever rota");
+        button.title = "Rever rota";
         button.dataset.action = "review-route";
-        button.textContent = "Rever rota";
+        button.textContent = "↗";
         item.append(button);
         trail.append(item);
       } else {

@@ -28,15 +28,19 @@
         return false;
       }
       const length = Math.hypot(dx, dy);
-      const moveX = dx / length * this.speed * dt;
-      const moveY = dy / length * this.speed * dt;
-      this.resolvePenetration(blocks);
       const oldX = this.x;
       const oldY = this.y;
-      this.x = this.moveAxis(this.x, this.y, moveX, true, blocks);
-      this.y = this.moveAxis(this.x, this.y, moveY, false, blocks);
-      this.x = Math.max(RADIUS, Math.min(WIDTH - RADIUS, this.x));
-      this.y = Math.max(RADIUS, Math.min(HEIGHT - RADIUS, this.y));
+      const stepCount = Math.max(1, Math.ceil(Math.max(0, dt) / (1 / 30)));
+      const step = Math.max(0, dt) / stepCount;
+      for (let index = 0; index < stepCount; index++) {
+        const moveX = dx / length * this.speed * step;
+        const moveY = dy / length * this.speed * step;
+        this.resolvePenetration(blocks);
+        this.x = this.moveAxis(this.x, this.y, moveX, true, blocks);
+        this.y = this.moveAxis(this.x, this.y, moveY, false, blocks);
+        this.x = Math.max(RADIUS, Math.min(WIDTH - RADIUS, this.x));
+        this.y = Math.max(RADIUS, Math.min(HEIGHT - RADIUS, this.y));
+      }
       if (this.x !== oldX || this.y !== oldY) this.angle = Math.atan2(this.y - oldY, this.x - oldX);
       this.moving = this.x !== oldX || this.y !== oldY;
       return this.x !== oldX || this.y !== oldY;

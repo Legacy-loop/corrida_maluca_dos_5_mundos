@@ -33,6 +33,7 @@
       this.stageIndex = 0;
       this.items = this.maps[0].items.map(item => ({ ...item }));
       this.nextGuidedItem = 0;
+      this.navigationIndex = 1;
       this.state = showMenu ? "MENU" : "PLAYING";
       this.player = new root.CM.Player(this.maps[0].spawn);
       this.renderer.transition = null;
@@ -40,6 +41,15 @@
       this.ui.clearTransient();
       this.ui.render(this.pda.snapshot(), this.stage, this);
       this.render();
+    }
+
+    advanceNavigation() {
+      const waypoints = this.map.waypoints;
+      while (this.navigationIndex < waypoints.length - 1) {
+        const waypoint = waypoints[this.navigationIndex];
+        if (Math.hypot(waypoint.x - this.player.x, waypoint.y - this.player.y) > 40) break;
+        this.navigationIndex++;
+      }
     }
 
     start() {
@@ -82,7 +92,10 @@
     }
 
     nearGate() {
-      return this.player.x > 790 && this.player.y > 210 && this.player.y < 350;
+      const target = this.map.finish || this.map.gate;
+      const nearestX = Math.max(target.x, Math.min(this.player.x, target.x + target.w));
+      const nearestY = Math.max(target.y, Math.min(this.player.y, target.y + target.h));
+      return Math.hypot(this.player.x - nearestX, this.player.y - nearestY) <= root.CM.PLAYER_RADIUS + 14;
     }
 
     togglePause() {
@@ -137,6 +150,7 @@
           this.showEnd(true, "Corrida aceita! Você equipou tudo na ordem certa.");
         } else if (result.operation.startsWith("POP")) {
           this.stageIndex++;
+          this.navigationIndex = 1;
           this.state = "TRANSITION";
           this.player.keys.clear();
           this.renderer.beginTransition(this.stage);
@@ -207,6 +221,7 @@
         const oldY = this.player.y;
         this.player.moving = this.player.update(dt, this.map.obstacles);
         const distance = Math.hypot(this.player.x - oldX, this.player.y - oldY);
+        this.advanceNavigation();
         if (distance > 0 && this.mode === "tutorial" && root.CM.coach) root.CM.coach.onMoved(distance);
         this.collect();
         if (this.stageIndex === this.route.length && this.nearGate()) this.process("f");
@@ -218,6 +233,10 @@
 
     showEnd(won, message) {
       const screen = document.getElementById("endScreen");
+      const champion = this.mode === "challenge" && won &&
+        this.level?.id === root.CM.LEVELS.at(-1).id;
+      document.getElementById("championScreen").classList.toggle("hidden", !champion);
+      screen.classList.toggle("hidden", champion);
       document.getElementById("endEyebrow").textContent = this.mode === "challenge"
         ? won ? "FASE CONCLUÍDA" : "FIM DE JOGO"
         : won ? "CORRIDA CONCLUÍDA" : "O PDA REJEITOU A CORRIDA";
@@ -225,9 +244,29 @@
         ? won ? this.level.id === root.CM.LEVELS.at(-1).id ? "Desafio concluído!" : "Você venceu!" : "Game over"
         : won ? "Corrida aceita!" : "Tente novamente";
       document.getElementById("endMessage").textContent = message;
-      screen.classList.remove("hidden");
-      if (won) this.playTone(900, 0.24);
+      if (!champion) screen.classList.remove("hidden");
+      if (champion) this.playFanfare();
+      else if (won) this.playTone(900, 0.24);
       root.dispatchEvent(new CustomEvent("cm-game-end", { detail: { won, mode: this.mode, level: this.level, failure: this.pda.last?.failure || null } }));
+    }
+
+    playFanfare() {
+      if (root.CM.muted) return;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const context = root.CM.audioContext || (root.CM.audioContext = new AudioContext());
+      [659, 784, 988, 1318].forEach((frequency, index) => {
+        const start = context.currentTime + index * 0.16;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.frequency.value = frequency;
+        gain.gain.setValueAtTime(0.055, start);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.19);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.2);
+      });
     }
 
     playTone(frequency, duration) {
@@ -261,8 +300,8 @@
         this.mode !== "challenge" || this.stageIndex !== 0 || this.nextGuidedItem !== 0 || this.state !== "PLAYING");
       document.getElementById("keyHint").classList.toggle("hidden", Boolean(root.CM.coach?.hasMoved));
       this.ui.render(this.pda.snapshot(), stage, this);
-      this.renderer.draw(stage, this.player, this.stageIndex === 0 ? this.items : [], this.map.obstacles,
-        this.stageIndex === 0 ? !this.items.length : true, isFinish, highlighted, destination);
+      this.renderer.draw(stage, this.player, this.stageIndex === 0 ? this.items : [], this.map,
+        this.stageIndex === 0 ? !this.items.length : true, isFinish, highlighted, destination, this.navigationIndex);
     }
   }
   root.CM.Game = Game;

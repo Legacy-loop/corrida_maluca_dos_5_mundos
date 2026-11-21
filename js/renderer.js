@@ -31,17 +31,17 @@
       return true;
     }
 
-    draw(stage, player, items, blocks, gateOpen, finish, highlightedItem, destination) {
+    draw(stage, player, items, map, gateOpen, finish, highlightedItem, destination, navigationIndex) {
       const c = this.ctx;
       c.clearRect(0, 0, WIDTH, HEIGHT);
       this.drawLandscape(c, stage);
       c.fillStyle = "#1824372e";
       c.fillRect(0, 0, WIDTH, HEIGHT);
-      this.drawTrack(c);
-      this.drawObstacles(c, blocks);
+      this.drawTrack(c, map.waypoints, stage.theme);
+      this.drawObstacles(c, map.obstacles, stage.theme);
       items.forEach(item => this.drawItem(c, item, item === highlightedItem));
-      this.drawGate(c, gateOpen, finish, destination);
-      this.drawNavigation(c, player, highlightedItem || { x: finish ? 820 : 850, y: 280 });
+      this.drawGate(c, map.finish || map.gate, gateOpen, finish, destination);
+      this.drawNavigation(c, player, map.waypoints, navigationIndex);
       if (player.moving) this.addDust(player);
       this.drawParticles(c);
       this.drawCar(c, player);
@@ -107,36 +107,128 @@
       }
     }
 
-    drawTrack(c) {
-      c.fillStyle = "#152230a8";
-      c.fillRect(0, 222, WIDTH, 116);
-      c.strokeStyle = "#ffffff6b";
-      c.lineWidth = 3;
-      c.setLineDash([18, 19]);
-      c.beginPath(); c.moveTo(0, 280); c.lineTo(WIDTH, 280); c.stroke();
+    drawTrack(c, waypoints, theme) {
+      const path = () => {
+        c.beginPath();
+        c.moveTo(waypoints[0].x, waypoints[0].y);
+        waypoints.slice(1).forEach(point => c.lineTo(point.x, point.y));
+      };
+      const surfaces = {
+        garage: ["#192a36", "#54666a"],
+        desert: ["#7a5028", "#deb16c"],
+        swamp: ["#183d3b", "#9d8b54"],
+        snow: ["#456b80", "#d9eff6"],
+        track: ["#111720", "#707984"],
+        volcano: ["#291d24", "#60403a"]
+      };
+      c.save();
+      c.lineCap = "round";
+      c.lineJoin = "round";
+      path();
+      c.strokeStyle = theme === "track" ? "#d9dce1" : "#101a25b8";
+      c.lineWidth = theme === "swamp" ? 114 : 106;
+      c.stroke();
+      path();
+      c.strokeStyle = surfaces[theme][0];
+      c.lineWidth = theme === "swamp" ? 102 : 94;
+      c.stroke();
+      path();
+      c.strokeStyle = surfaces[theme][1];
+      c.globalAlpha = 0.34;
+      c.lineWidth = 4;
+      c.setLineDash(theme === "track" ? [16, 11] : [3, 17]);
+      c.stroke();
       c.setLineDash([]);
-      c.fillStyle = "#fff9";
-      for (let y = 228; y < 338; y += 17) {
-        if (y % 34 < 17) {
-          c.fillRect(0, y, 13, 9);
-          c.fillRect(WIDTH - 13, y, 13, 9);
-        }
+      c.globalAlpha = 1;
+      if (theme === "track") {
+        path();
+        c.strokeStyle = "#d6464d";
+        c.lineWidth = 7;
+        c.setLineDash([12, 12]);
+        c.stroke();
+        c.setLineDash([12, 12]);
+        c.lineDashOffset = 12;
+        c.strokeStyle = "#f4f4f4";
+        c.stroke();
+      } else if (theme === "garage") {
+        c.strokeStyle = "#c5a77a66";
+        c.lineWidth = 2;
+        waypoints.slice(1, -1).forEach(point => {
+          c.beginPath(); c.moveTo(point.x - 26, point.y); c.lineTo(point.x + 26, point.y); c.stroke();
+        });
+      } else if (theme === "swamp") {
+        c.strokeStyle = "#d9cb8b55";
+        c.lineWidth = 5;
+        waypoints.slice(1, -1).forEach(point => {
+          c.beginPath(); c.moveTo(point.x - 31, point.y); c.lineTo(point.x + 31, point.y); c.stroke();
+        });
       }
+      c.restore();
     }
 
-    drawObstacles(c, blocks) {
+    drawObstacles(c, blocks, theme) {
+      const styles = {
+        garage: { fill: "#75553b", edge: "#e1c59a" },
+        desert: { fill: "#b58b51", edge: "#f7d892" },
+        swamp: { fill: "#244b47", edge: "#7da18c" },
+        snow: { fill: "#bddbe6", edge: "#f6ffff" },
+        track: { fill: "#292f38", edge: "#d84b51" },
+        volcano: { fill: "#35252b", edge: "#ff7347" }
+      };
+      const style = styles[theme];
       blocks.forEach(block => {
         c.save();
         c.shadowColor = "#09101a88";
         c.shadowBlur = 12;
-        c.fillStyle = "#172333d9";
+        c.fillStyle = style.fill;
         c.beginPath();
-        c.roundRect(block.x, block.y, block.w, block.h, 10);
+        c.roundRect(block.x, block.y, block.w, block.h, theme === "desert" ? 14 : 5);
         c.fill();
         c.shadowBlur = 0;
-        c.strokeStyle = "#ffffff55";
-        c.lineWidth = 2;
+        c.strokeStyle = style.edge;
+        c.lineWidth = theme === "track" ? 4 : 2;
         c.stroke();
+        c.save();
+        c.beginPath();
+        c.rect(block.x, block.y, block.w, block.h);
+        c.clip();
+        if (theme === "garage") {
+          c.strokeStyle = "#211d1a66";
+          c.lineWidth = 3;
+          for (let y = block.y + 14; y < block.y + block.h; y += 25) {
+            c.beginPath(); c.moveTo(block.x, y); c.lineTo(block.x + block.w, y); c.stroke();
+          }
+        } else if (theme === "desert") {
+          c.strokeStyle = "#ffe4a466";
+          c.lineWidth = 3;
+          for (let y = block.y + 12; y < block.y + block.h; y += 34) {
+            c.beginPath(); c.moveTo(block.x, y); c.quadraticCurveTo(block.x + block.w / 2, y - 10, block.x + block.w, y); c.stroke();
+          }
+        } else if (theme === "swamp") {
+          c.strokeStyle = "#a8d7b755";
+          c.lineWidth = 2;
+          for (let y = block.y + 18; y < block.y + block.h; y += 42) {
+            c.beginPath(); c.ellipse(block.x + block.w / 2, y, block.w * 0.35, 5, 0, 0, Math.PI * 2); c.stroke();
+          }
+        } else if (theme === "snow") {
+          c.strokeStyle = "#ffffffa8";
+          c.lineWidth = 3;
+          for (let y = block.y + 10; y < block.y + block.h; y += 36) {
+            c.beginPath(); c.moveTo(block.x + 3, y); c.lineTo(block.x + block.w - 3, y + 13); c.stroke();
+          }
+        } else if (theme === "track") {
+          c.fillStyle = "#aeb5bd";
+          for (let y = block.y + 14; y < block.y + block.h; y += 32) {
+            c.beginPath(); c.arc(block.x + block.w / 2, y, Math.min(10, block.w / 2 - 2), 0, Math.PI * 2); c.fill();
+          }
+        } else {
+          c.strokeStyle = "#ff7347";
+          c.lineWidth = 4;
+          for (let y = block.y + 14; y < block.y + block.h; y += 42) {
+            c.beginPath(); c.moveTo(block.x + 3, y); c.lineTo(block.x + block.w - 3, y + 11); c.stroke();
+          }
+        }
+        c.restore();
         c.restore();
       });
     }
@@ -166,20 +258,26 @@
       c.restore();
     }
 
-    drawGate(c, open, finish, destination) {
-      const x = finish ? 820 : 850;
+    drawGate(c, gate, open, finish, destination) {
+      const x = gate.x + gate.w / 2;
       c.save();
       c.fillStyle = open || finish ? "#48d79a" : "#f36a72";
-      c.fillRect(x - 6, 228, 12, 104);
+      c.shadowColor = c.fillStyle;
+      c.shadowBlur = 20;
+      c.fillRect(x - 7, gate.y, 14, gate.h);
+      c.shadowBlur = 0;
+      c.strokeStyle = "#f8fbff";
+      c.lineWidth = 3;
+      c.strokeRect(x - 11, gate.y - 4, 22, gate.h + 8);
       c.fillStyle = "#fff";
       c.font = "900 10px system-ui";
       c.textAlign = "center";
-      c.fillText(finish ? "CHEGADA" : `PORTAL → ${destination || ""}`, x, 215);
+      c.fillText(finish ? "CHEGADA" : `PORTAL → ${destination || ""}`, x, gate.y - 12);
       if (finish) {
-        for (let y = 232; y < 332; y += 20) {
-          for (let x0 = 808; x0 < 833; x0 += 12) {
-            if ((Math.floor(y / 20) + Math.floor(x0 / 12)) % 2 === 0) {
-              c.fillStyle = "#fff"; c.fillRect(x0, y, 12, 10);
+        for (let stripeY = gate.y + 4; stripeY < gate.y + gate.h - 4; stripeY += 20) {
+          for (let x0 = x - 12; x0 < x + 12; x0 += 12) {
+            if ((Math.floor(stripeY / 20) + Math.floor(x0 / 12)) % 2 === 0) {
+              c.fillStyle = "#fff"; c.fillRect(x0, stripeY, 12, 10);
             }
           }
         }
@@ -187,8 +285,10 @@
       c.restore();
     }
 
-    drawNavigation(c, player, target) {
-      if (Math.hypot(target.x - player.x, target.y - player.y) < 70) return;
+    drawNavigation(c, player, waypoints, navigationIndex) {
+      const remaining = waypoints.slice(Math.max(1, navigationIndex));
+      const target = remaining[0] || waypoints.at(-1);
+      if (Math.hypot(target.x - player.x, target.y - player.y) < 40) return;
       const angle = Math.atan2(target.y - player.y, target.x - player.x);
       c.save();
       c.globalAlpha = 0.35;
@@ -197,10 +297,10 @@
       c.setLineDash([6, 9]);
       c.beginPath();
       c.moveTo(player.x, player.y);
-      c.lineTo(target.x, target.y);
+      remaining.forEach(point => c.lineTo(point.x, point.y));
       c.stroke();
       c.setLineDash([]);
-      c.translate(target.x, target.y);
+      c.translate(player.x + Math.cos(angle) * 28, player.y + Math.sin(angle) * 28);
       c.rotate(angle);
       c.fillStyle = "#ffd04a";
       c.beginPath();

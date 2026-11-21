@@ -10,6 +10,22 @@
   const simulator = new Simulator(ui);
   root.CM.game = game;
   root.CM.simulator = simulator;
+  if (new URLSearchParams(location.search).get("debug") === "1") {
+    root.CM.debug = {
+      gotoWorld(index) {
+        if (!Number.isInteger(index) || index < 0 || index >= game.maps.length) {
+          throw new RangeError("Índice de mundo inválido.");
+        }
+        game.stageIndex = index;
+        game.items = index === 0 ? game.maps[index].items.map(item => ({ ...item })) : [];
+        game.nextGuidedItem = 0;
+        game.navigationIndex = 1;
+        game.state = "PLAYING";
+        game.player.reset(game.map.spawn);
+        game.render();
+      }
+    };
+  }
   simulator.bindControls();
 
   const playTab = document.getElementById("playTab");
@@ -26,6 +42,7 @@
   const briefingView = document.getElementById("briefingView");
   const routeReview = document.getElementById("routeReview");
   const endScreen = document.getElementById("endScreen");
+  const championScreen = document.getElementById("championScreen");
   const forceTutorial = new URLSearchParams(location.search).get("tutorial") === "1";
   const unlockAll = new URLSearchParams(location.search).get("unlockAll") === "1";
   let activeTab = "play";
@@ -124,6 +141,7 @@
     challengeSelect.classList.add("hidden");
     briefingView.classList.add("hidden");
     endScreen.classList.add("hidden");
+    championScreen.classList.add("hidden");
     playerMoved = false;
     coach.hasMoved = false;
     showCoach("drive", "Dirija com W A S D ou setas.", ".race-main", true);
@@ -207,6 +225,7 @@
   }
 
   function renderLevelCards() {
+    document.getElementById("championBadge").classList.toggle("hidden", !readFlag("cm-challenge-complete"));
     const container = document.getElementById("levelCards");
     container.replaceChildren();
     const maxUnlocked = unlockedLevelCount();
@@ -339,6 +358,7 @@
     briefingView.classList.add("hidden");
     routeReview.classList.add("hidden");
     endScreen.classList.add("hidden");
+    championScreen.classList.add("hidden");
     renderLevelCards();
     challengeSelect.classList.remove("hidden");
   }
@@ -370,8 +390,10 @@
     challengeSelect.classList.add("hidden");
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
+    championScreen.classList.add("hidden");
     briefingView.classList.remove("hidden");
     renderBriefing();
+    document.getElementById("championBadge").classList.toggle("hidden", !readFlag("cm-challenge-complete"));
     if (!readFlag("cm-challenge-intro")) showChallengeIntro(0);
   }
 
@@ -382,6 +404,7 @@
     briefingView.classList.add("hidden");
     routeReview.classList.add("hidden");
     endScreen.classList.add("hidden");
+    championScreen.classList.add("hidden");
     game.configure({ mode: "challenge", level, plan });
     game.start();
     setActiveTab("play", false);
@@ -395,6 +418,7 @@
 
   function openChallengeLab(level, plan) {
     document.getElementById("endScreen").classList.add("hidden");
+    championScreen.classList.add("hidden");
     simulator.setRoute(level.id);
     simulator.loadSequence(sequenceFor(level, plan));
     setActiveTab("lab");
@@ -409,8 +433,37 @@
     buttons.forEach((button, index) => {
       button.textContent = actions[index].label;
       button.dataset.action = actions[index].action;
-      button.className = `button ${index === 0 ? "primary" : index === 1 ? "secondary" : "outline"}`;
+      button.className = `button ${actions[index].primary ? "primary" : index === 1 ? "secondary" : "outline"}`;
     });
+  }
+
+  function renderChampionSummary() {
+    const summary = document.getElementById("championSummary");
+    summary.replaceChildren();
+    LEVELS.forEach((level, index) => {
+      const row = document.createElement("li");
+      const title = document.createElement("strong");
+      const stats = document.createElement("span");
+      title.textContent = `✔ Fase ${index + 1} · ${level.name}`;
+      stats.textContent = `${attempts.get(level.id) || 0} tentativas · ${routeViews.get(level.id) || 0} consultas`;
+      row.append(title, stats);
+      summary.append(row);
+    });
+  }
+
+  function renderChampionConfetti() {
+    const container = document.getElementById("championConfetti");
+    container.replaceChildren();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const colors = ["#ffd04a", "#63e3a8", "#70dcff", "#ff8088", "#fff0a0"];
+    for (let index = 0; index < 20; index++) {
+      const piece = document.createElement("span");
+      piece.className = "confetti-piece";
+      piece.style.setProperty("--confetti-x", `${(index * 47) % 90}%`);
+      piece.style.setProperty("--confetti-color", colors[index % colors.length]);
+      piece.style.setProperty("--confetti-delay", `${(index % 7) * -0.19}s`);
+      container.append(piece);
+    }
   }
 
   function updateEndOutcome({ won, mode, level, failure }) {
@@ -424,11 +477,11 @@
         setEndActions([
           { label: "Refazer tutorial", action: "tutorial" },
           { label: "Ir ao Laboratório", action: "lab" },
-          { label: "Começar o desafio", action: "select" }
+          { label: "Começar o desafio", action: "select", primary: true }
         ]);
       } else {
         setEndActions([
-          { label: "Tentar de novo", action: "tutorial" },
+          { label: "Tentar de novo", action: "tutorial", primary: true },
           { label: "Ir ao Laboratório", action: "lab" },
           { label: "Começar o desafio", action: "select" }
         ]);
@@ -445,16 +498,17 @@
     if (won) {
       if (levelIndex < LEVELS.length - 1) writeProgress(Math.max(readProgress(), levelIndex + 2));
       if (levelIndex === LEVELS.length - 1) {
-        setEndActions([
-          { label: "Jogar o desafio de novo", action: "select" },
-          { label: "Ir ao Laboratório", action: "challenge-lab" },
-          { label: "Refazer tutorial", action: "tutorial" }
-        ]);
-      } else {
-        setEndActions([
-          { label: "Próxima fase", action: "next-level" },
-          { label: "Laboratório", action: "challenge-lab" },
-          { label: "Escolher fase", action: "select" }
+      writeFlag("cm-challenge-complete");
+      document.getElementById("championBadge").classList.remove("hidden");
+      renderChampionSummary();
+      renderChampionConfetti();
+      document.getElementById("championActionPrimary").focus();
+      return;
+    } else {
+      setEndActions([
+        { label: "Próxima fase", action: "next-level", primary: true },
+        { label: "Laboratório", action: "challenge-lab" },
+        { label: "Escolher fase", action: "select" }
         ]);
       }
       return;
@@ -471,17 +525,18 @@
     }
     if (attemptCount >= 2) solution.classList.remove("hidden");
     setEndActions([
-      { label: "Tentar de novo", action: "retry-level" },
+      { label: "Tentar de novo", action: "retry-level", primary: true },
       { label: "Ver no Laboratório", action: "challenge-lab" },
       { label: "Escolher fase", action: "select" }
     ]);
   }
 
   function handleEndAction(action) {
+    endScreen.classList.add("hidden");
+    championScreen.classList.add("hidden");
     if (action === "tutorial") {
       beginTutorial();
     } else if (action === "lab") {
-      endScreen.classList.add("hidden");
       setActiveTab("lab");
     } else if (action === "select") {
       showLevelSelection();
@@ -569,11 +624,15 @@
   ["endActionPrimary", "endActionSecondary", "endActionTertiary"].forEach(id => {
     document.getElementById(id).addEventListener("click", event => handleEndAction(event.currentTarget.dataset.action));
   });
+  ["championActionPrimary", "championActionSecondary", "championActionTertiary"].forEach(id => {
+    document.getElementById(id).addEventListener("click", event => handleEndAction(event.currentTarget.dataset.action));
+  });
 
   document.getElementById("pauseBtn").addEventListener("click", () => game.togglePause());
   document.getElementById("resumeBtn").addEventListener("click", () => game.resume());
   function hasProgress() {
-    return game.pda.input.length > 0 || game.stageIndex > 0 || Math.hypot(game.player.x - 42, game.player.y - 280) > 20;
+    return game.pda.input.length > 0 || game.stageIndex > 0 ||
+      Math.hypot(game.player.x - game.map.spawn.x, game.player.y - game.map.spawn.y) > 20;
   }
   function restartGame() {
     if (hasProgress() && !root.confirm("Reiniciar a corrida e perder o progresso?")) return;
@@ -581,6 +640,7 @@
       routeReview.classList.add("hidden");
       briefingView.classList.add("hidden");
       endScreen.classList.add("hidden");
+      championScreen.classList.add("hidden");
       game.configure({ mode: "challenge", level: game.level, plan: game.plan });
       game.start();
       return;
@@ -640,6 +700,7 @@
     }
     const modalOpen = !startScreen.classList.contains("hidden") ||
       !endScreen.classList.contains("hidden") ||
+      !championScreen.classList.contains("hidden") ||
       !challengeSelect.classList.contains("hidden") ||
       !briefingView.classList.contains("hidden") ||
       !routeReview.classList.contains("hidden");
