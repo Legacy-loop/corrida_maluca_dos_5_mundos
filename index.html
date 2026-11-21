@@ -47,7 +47,7 @@
 
       <section id="challengeSelect" class="overlay hidden" aria-labelledby="challengeSelectTitle">
         <div class="modal challenge-modal">
-          <p class="eyebrow">MODO DESAFIO</p>
+          <p class="eyebrow">MODO DESAFIO <span id="championBadge" class="champion-badge hidden">🏆 Campeão</span></p>
           <h2 id="challengeSelectTitle">Escolha sua fase</h2>
           <div id="levelCards" class="level-cards"></div>
           <div class="modal-actions"><button id="planSelectedLevel" class="button primary" type="button" disabled>Planejar fase</button><button id="backFromLevels" class="text-button" type="button">Voltar</button></div>
@@ -240,6 +240,29 @@
         <button id="endActionPrimary" class="button primary" type="button">Refazer tutorial</button>
         <button id="endActionSecondary" class="button secondary" type="button">Ir ao Laboratório</button>
         <button id="endActionTertiary" class="button outline" type="button">Começar o desafio</button>
+      </div>
+    </div>
+  </section>
+  <section id="championScreen" class="overlay champion-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="championTitle">
+    <div id="championConfetti" class="champion-confetti" aria-hidden="true"></div>
+    <div class="modal champion-modal">
+      <svg class="champion-trophy" viewBox="0 0 160 160" role="img" aria-label="Troféu dourado com uma estrela">
+        <defs>
+          <linearGradient id="trophyGold" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#fff0a0"/><stop offset=".48" stop-color="#ffc928"/><stop offset="1" stop-color="#d47a12"/>
+          </linearGradient>
+        </defs>
+        <path class="trophy-cup" d="M43 24h74v31c0 25-14 40-30 45v18h22v13H51v-13h22V100C57 95 43 80 43 55V24Zm-20 8h20v15H35v8c0 12 5 19 14 22l-5 13C27 83 17 70 17 52V40c0-5 2-8 6-8Zm94 0h20c4 0 6 3 6 8v12c0 18-10 31-27 38l-5-13c9-3 14-10 14-22v-8h-8V32Z" fill="url(#trophyGold)" stroke="#fff0a0" stroke-width="2"/>
+        <path class="trophy-star" d="m80 40 5.2 10.6 11.7 1.7-8.5 8.3 2 11.7L80 66.8l-10.4 5.5 2-11.7-8.5-8.3 11.7-1.7L80 40Z" fill="#fff8d6"/>
+      </svg>
+      <p class="eyebrow">DESAFIO CONCLUÍDO</p>
+      <h2 id="championTitle">Parabéns, campeão do Rally!</h2>
+      <p class="champion-message">Você dominou a pilha: o último que entra é o primeiro que sai.</p>
+      <ol id="championSummary" class="champion-summary" aria-label="Resumo das três fases"></ol>
+      <div class="modal-actions champion-actions">
+        <button id="championActionPrimary" class="button primary" data-action="select" type="button">Jogar o desafio de novo</button>
+        <button id="championActionSecondary" class="button secondary" data-action="challenge-lab" type="button">Ir ao Laboratório</button>
+        <button id="championActionTertiary" class="button outline" data-action="tutorial" type="button">Refazer tutorial</button>
       </div>
     </div>
   </section>

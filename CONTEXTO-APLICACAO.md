@@ -30,6 +30,7 @@ Trabalho_LFM2/
 │   ├── corrida-maluca-pda.jff
 │   ├── pda-transitions.md
 │   ├── challenge-levels.md
+│   ├── circuits.md
 ├── tests/
 │   ├── challenge.test.js
 │   ├── maps.test.js
@@ -103,11 +104,13 @@ dinâmicos do PDA.
 
 ## 5. Mapas e colisões
 
-`js/maps.js` descreve layouts por tema e monta as rotas clássicas e de
-desafio. Cada mapa contém spawn, obstáculos, portão e, no mundo final,
-chegada. A garagem comporta até oito equipamentos. `validateMap(map)` lança
-erro se o spawn invade um obstáculo, se alvos se sobrepõem, se algum alvo
-invade obstáculo ou não é alcançável por busca BFS em grade.
+`js/maps.js` descreve seis circuitos por tema e monta as rotas clássicas e de
+desafio. Cada mapa tem barreiras e aberturas próprias, caminho de waypoints,
+spawn, portão e, no mundo final, chegada. O terceiro Rally reutiliza o Deserto
+espelhado verticalmente. A garagem comporta até oito equipamentos.
+`validateMap(map)` valida métricas de percurso, obstáculos, folga segura,
+alvos e alcançabilidade por busca BFS em grade. Comprimentos e tempos
+estimados estão em [docs/circuits.md](docs/circuits.md).
 
 O jogador move um eixo por vez para permitir deslizamento junto às paredes.
 Uma etapa de resolução de penetração desloca o carro para uma posição livre
@@ -128,6 +131,10 @@ ordem inválida encerra a fase com explicação do equipamento esperado.
 
 O modo **Guiado** inicia por padrão. O menu **Desafio** fica disponível após
 a primeira vitória e permite escolher entre as fases desbloqueadas.
+Vencer o Rally maluco abre a tela de campeã com troféu SVG acessível, resumo
+das três fases e ações para repetir, voltar ao jogo ou abrir o Laboratório.
+O sinalizador de conclusão persiste com acesso protegido a `localStorage`;
+confete e fanfarra respeitam a preferência por movimento reduzido.
 O coachmark da primeira partida avança com movimento, coleta e instalação;
 tem opção de pular, pode ser refeito pelo botão `?` e aceita `?tutorial=1`.
 Seu sinalizador de conclusão usa `localStorage` protegido por `try/catch`, sem
@@ -169,6 +176,8 @@ carregado.
 
 Cada mundo possui paleta e cenário próprios: garagem, dunas, pântano,
 montanhas nevadas, autódromo e vulcão.
+As capturas de cada circuito em 1280×720 e da celebração em três tamanhos
+estão em `docs/screenshots/`.
 
 ## 9. Diagnóstico
 

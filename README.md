@@ -49,6 +49,8 @@ npm test
 
 Os testes verificam rotas do PDA, planos válidos e inválidos, metadados de
 falha, mensagens, snapshots e alcançabilidade dos mapas clássicos e de desafio.
+Os mapas são circuitos distintos, com caminho guiado, duração estimada,
+barreiras e folga de colisão medidas. Veja [docs/circuits.md](docs/circuits.md).
 
 Para instalar a dependência de desenvolvimento Playwright e executar o E2E
 em Chromium:
@@ -103,6 +105,18 @@ O modo Desafio também tem capturas de briefing, derrota e vitória:
 | 1280×720 | [briefing](docs/screenshots/challenge-briefing-1280x720.png) | [game over](docs/screenshots/challenge-game-over-1280x720.png) | [vitória](docs/screenshots/challenge-victory-1280x720.png) |
 | 768×1024 | [briefing](docs/screenshots/challenge-briefing-768x1024.png) | [game over](docs/screenshots/challenge-game-over-768x1024.png) | [vitória](docs/screenshots/challenge-victory-768x1024.png) |
 | 390×844 | [briefing](docs/screenshots/challenge-briefing-390x844.png) | [game over](docs/screenshots/challenge-game-over-390x844.png) | [vitória](docs/screenshots/challenge-victory-390x844.png) |
+
+As seis pistas e a tela de campeã também têm capturas:
+
+| Pista / tela | Captura |
+|---|---|
+| Garagem | [1280×720](docs/screenshots/circuit-garage-1280x720.png) |
+| Deserto | [1280×720](docs/screenshots/circuit-desert-1280x720.png) |
+| Pântano | [1280×720](docs/screenshots/circuit-swamp-1280x720.png) |
+| Neve | [1280×720](docs/screenshots/circuit-snow-1280x720.png) |
+| Autódromo | [1280×720](docs/screenshots/circuit-track-1280x720.png) |
+| Vulcão | [1280×720](docs/screenshots/circuit-volcano-1280x720.png) |
+| Tela de campeã | [1280×720](docs/screenshots/champion-1280x720.png) · [768×1024](docs/screenshots/champion-768x1024.png) · [390×844](docs/screenshots/champion-390x844.png) |
 
 ## Publicar no GitHub Pages
 
