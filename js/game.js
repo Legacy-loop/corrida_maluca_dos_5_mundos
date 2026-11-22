@@ -33,7 +33,7 @@
       this.stageIndex = 0;
       this.items = this.maps[0].items.map(item => ({ ...item }));
       this.nextGuidedItem = 0;
-      this.navigationIndex = 1;
+      this.guideHint = 0;
       this.state = showMenu ? "MENU" : "PLAYING";
       this.player = new root.CM.Player(this.maps[0].spawn);
       this.renderer.transition = null;
@@ -41,15 +41,6 @@
       this.ui.clearTransient();
       this.ui.render(this.pda.snapshot(), this.stage, this);
       this.render();
-    }
-
-    advanceNavigation() {
-      const waypoints = this.map.waypoints;
-      while (this.navigationIndex < waypoints.length - 1) {
-        const waypoint = waypoints[this.navigationIndex];
-        if (Math.hypot(waypoint.x - this.player.x, waypoint.y - this.player.y) > 40) break;
-        this.navigationIndex++;
-      }
     }
 
     start() {
@@ -150,7 +141,7 @@
           this.showEnd(true, "Corrida aceita! Você equipou tudo na ordem certa.");
         } else if (result.operation.startsWith("POP")) {
           this.stageIndex++;
-          this.navigationIndex = 1;
+          this.guideHint = 0;
           this.state = "TRANSITION";
           this.player.keys.clear();
           this.renderer.beginTransition(this.stage);
@@ -221,7 +212,6 @@
         const oldY = this.player.y;
         this.player.moving = this.player.update(dt, this.map.obstacles);
         const distance = Math.hypot(this.player.x - oldX, this.player.y - oldY);
-        this.advanceNavigation();
         if (distance > 0 && this.mode === "tutorial" && root.CM.coach) root.CM.coach.onMoved(distance);
         this.collect();
         if (this.stageIndex === this.route.length && this.nearGate()) this.process("f");
@@ -300,8 +290,22 @@
         this.mode !== "challenge" || this.stageIndex !== 0 || this.nextGuidedItem !== 0 || this.state !== "PLAYING");
       document.getElementById("keyHint").classList.toggle("hidden", Boolean(root.CM.coach?.hasMoved));
       this.ui.render(this.pda.snapshot(), stage, this);
+      let guideTarget = this.map.finish || this.map.gate;
+      if (this.stageIndex === 0) {
+        const highlighted = this.items.find(item => item.order === this.nextGuidedItem + 1);
+        if (highlighted) guideTarget = highlighted;
+        else guideTarget = this.map.finish || this.map.gate;
+      }
+      const guide = root.CM.computeGuide({
+        map: this.map,
+        player: this.player,
+        target: guideTarget,
+        hint: this.guideHint
+      });
+      this.guideHint = guide.sCar;
+      this.guide = guide;
       this.renderer.draw(stage, this.player, this.stageIndex === 0 ? this.items : [], this.map,
-        this.stageIndex === 0 ? !this.items.length : true, isFinish, highlighted, destination, this.navigationIndex);
+        this.stageIndex === 0 ? !this.items.length : true, isFinish, highlighted, destination, guide);
     }
   }
   root.CM.Game = Game;

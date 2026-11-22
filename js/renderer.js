@@ -7,8 +7,15 @@
       this.dpr = 1;
       this.transition = null;
       this.particles = [];
+      this.staticCanvas = document.createElement("canvas");
+      this.staticKey = "";
+      this.staticRebuilds = 0;
+      this.navigationAngle = 0;
       this.resize();
-      window.addEventListener("resize", () => this.resize());
+      window.addEventListener("resize", () => {
+        this.resize();
+        this.staticKey = "";
+      });
     }
 
     resize() {
@@ -17,6 +24,23 @@
       this.canvas.width = WIDTH * ratio;
       this.canvas.height = HEIGHT * ratio;
       this.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
+
+    buildStaticLayer(stage, map) {
+      const key = `${stage.theme}:${map.variant || 0}:${this.dpr}`;
+      if (this.staticKey === key) return;
+      this.staticCanvas.width = WIDTH * this.dpr;
+      this.staticCanvas.height = HEIGHT * this.dpr;
+      const c = this.staticCanvas.getContext("2d");
+      c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      c.clearRect(0, 0, WIDTH, HEIGHT);
+      this.drawLandscape(c, stage);
+      c.fillStyle = "#1824372e";
+      c.fillRect(0, 0, WIDTH, HEIGHT);
+      this.drawTrack(c, map.waypoints, stage.theme);
+      this.drawObstacles(c, map.obstacles, stage.theme);
+      this.staticKey = key;
+      this.staticRebuilds++;
     }
 
     beginTransition(stage) {
@@ -31,21 +55,19 @@
       return true;
     }
 
-    draw(stage, player, items, map, gateOpen, finish, highlightedItem, destination, navigationIndex) {
+    draw(stage, player, items, map, gateOpen, finish, highlightedItem, destination, guide) {
       const c = this.ctx;
       c.clearRect(0, 0, WIDTH, HEIGHT);
-      this.drawLandscape(c, stage);
-      c.fillStyle = "#1824372e";
-      c.fillRect(0, 0, WIDTH, HEIGHT);
-      this.drawTrack(c, map.waypoints, stage.theme);
-      this.drawObstacles(c, map.obstacles, stage.theme);
+      this.buildStaticLayer(stage, map);
+      c.drawImage(this.staticCanvas, 0, 0, this.staticCanvas.width, this.staticCanvas.height, 0, 0, WIDTH, HEIGHT);
       items.forEach(item => this.drawItem(c, item, item === highlightedItem));
       this.drawGate(c, map.finish || map.gate, gateOpen, finish, destination);
-      this.drawNavigation(c, player, map.waypoints, navigationIndex);
+      this.drawNavigation(c, player, guide);
       if (player.moving) this.addDust(player);
       this.drawParticles(c);
       this.drawCar(c, player);
       if (this.transition) this.drawTransition(c, this.transition.stage);
+      if (new URLSearchParams(location.search).get("overlay") === "1") this.drawDebugOverlay(c, map);
     }
 
     drawLandscape(c, stage) {
@@ -126,11 +148,11 @@
       c.lineJoin = "round";
       path();
       c.strokeStyle = theme === "track" ? "#d9dce1" : "#101a25b8";
-      c.lineWidth = theme === "swamp" ? 114 : 106;
+      c.lineWidth = theme === "swamp" ? 94 : 94;
       c.stroke();
       path();
       c.strokeStyle = surfaces[theme][0];
-      c.lineWidth = theme === "swamp" ? 102 : 94;
+      c.lineWidth = theme === "swamp" ? 82 : 82;
       c.stroke();
       path();
       c.strokeStyle = surfaces[theme][1];
@@ -147,7 +169,6 @@
         c.setLineDash([12, 12]);
         c.stroke();
         c.setLineDash([12, 12]);
-        c.lineDashOffset = 12;
         c.strokeStyle = "#f4f4f4";
         c.stroke();
       } else if (theme === "garage") {
@@ -177,12 +198,16 @@
       };
       const style = styles[theme];
       blocks.forEach(block => {
+        const x = Math.round(block.x);
+        const y = Math.round(block.y);
+        const w = Math.round(block.w);
+        const h = Math.round(block.h);
         c.save();
         c.shadowColor = "#09101a88";
         c.shadowBlur = 12;
         c.fillStyle = style.fill;
         c.beginPath();
-        c.roundRect(block.x, block.y, block.w, block.h, theme === "desert" ? 14 : 5);
+        c.roundRect(x, y, w, h, theme === "desert" ? 14 : 5);
         c.fill();
         c.shadowBlur = 0;
         c.strokeStyle = style.edge;
@@ -285,30 +310,94 @@
       c.restore();
     }
 
-    drawNavigation(c, player, waypoints, navigationIndex) {
-      const remaining = waypoints.slice(Math.max(1, navigationIndex));
-      const target = remaining[0] || waypoints.at(-1);
-      if (Math.hypot(target.x - player.x, target.y - player.y) < 40) return;
-      const angle = Math.atan2(target.y - player.y, target.x - player.x);
+    drawNavigation(c, player, guide) {
+      if (!guide || guide.targetDistance < 40 || !guide.path?.points?.length) return;
       c.save();
-      c.globalAlpha = 0.35;
-      c.strokeStyle = "#ffd04a";
-      c.lineWidth = 2;
-      c.setLineDash([6, 9]);
-      c.beginPath();
-      c.moveTo(player.x, player.y);
-      remaining.forEach(point => c.lineTo(point.x, point.y));
-      c.stroke();
-      c.setLineDash([]);
-      c.translate(player.x + Math.cos(angle) * 28, player.y + Math.sin(angle) * 28);
-      c.rotate(angle);
+      guide.chevrons.forEach((chevron) => {
+        let from = player;
+        let to = chevron.point;
+        if (chevron.s > guide.sCar) {
+          const next = root.CM.pointAtArc(guide.path, Math.min(guide.path.length, chevron.s + 12));
+          from = chevron.point;
+          to = next;
+        } else {
+          const previous = root.CM.pointAtArc(guide.path, Math.max(0, chevron.s - 12));
+          from = chevron.point;
+          to = previous;
+        }
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const edgeFade = Math.min(1, (chevron.s - guide.sCar) / 36, (guide.sTarget - chevron.s) / 36);
+        c.globalAlpha = Math.max(0.35, edgeFade);
+        c.save();
+        c.translate(chevron.point.x, chevron.point.y);
+        c.rotate(angle);
+        c.shadowColor = "#0b1018";
+        c.shadowBlur = 2;
+        c.fillStyle = "#ffd04a";
+        c.strokeStyle = "#202532";
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(-8, -6);
+        c.lineTo(3, 0);
+        c.lineTo(-8, 6);
+        c.closePath();
+        c.fill();
+        c.stroke();
+        c.restore();
+      });
+      c.restore();
+      const nextPoint = root.CM.pointAtArc(guide.path, guide.forward
+        ? Math.min(guide.path.length, guide.sCar + 60)
+        : Math.max(0, guide.sCar - 60));
+      let desiredAngle = Math.atan2(nextPoint.y - player.y, nextPoint.x - player.x);
+      let delta = desiredAngle - this.navigationAngle;
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      this.navigationAngle += delta * 0.18;
+      c.save();
+      c.translate(player.x + Math.cos(this.navigationAngle) * 28,
+        player.y + Math.sin(this.navigationAngle) * 28);
+      c.rotate(this.navigationAngle);
       c.fillStyle = "#ffd04a";
+      c.strokeStyle = "#202532";
+      c.lineWidth = 2;
       c.beginPath();
       c.moveTo(-10, -7);
       c.lineTo(9, 0);
       c.lineTo(-10, 7);
       c.closePath();
       c.fill();
+      c.stroke();
+      c.restore();
+    }
+
+    drawDebugOverlay(c, map) {
+      c.save();
+      c.strokeStyle = "#70dcff";
+      c.lineWidth = 1;
+      c.globalAlpha = 0.32;
+      for (let x = 0; x <= WIDTH; x += 10) {
+        c.beginPath(); c.moveTo(x, 0); c.lineTo(x, HEIGHT); c.stroke();
+      }
+      for (let y = 0; y <= HEIGHT; y += 10) {
+        c.beginPath(); c.moveTo(0, y); c.lineTo(WIDTH, y); c.stroke();
+      }
+      c.globalAlpha = 0.8;
+      c.fillStyle = "#ff8088";
+      map.obstacles.forEach(block => c.strokeRect(block.x, block.y, block.w, block.h));
+      c.strokeStyle = "#ffd04a";
+      c.beginPath();
+      map.waypoints.forEach((point, index) => {
+        if (index === 0) c.moveTo(point.x, point.y);
+        else c.lineTo(point.x, point.y);
+      });
+      c.stroke();
+      map.waypoints.forEach(point => {
+        c.fillStyle = "#ffd04a";
+        c.beginPath(); c.arc(point.x, point.y, 4, 0, Math.PI * 2); c.fill();
+      });
+      c.strokeStyle = "#63e3a8";
+      c.strokeRect(0, (HEIGHT - (map.roadWidth || 82)) / 2, WIDTH, map.roadWidth || 82);
       c.restore();
     }
 

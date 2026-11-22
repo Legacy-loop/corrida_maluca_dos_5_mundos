@@ -19,12 +19,15 @@
         game.stageIndex = index;
         game.items = index === 0 ? game.maps[index].items.map(item => ({ ...item })) : [];
         game.nextGuidedItem = 0;
-        game.navigationIndex = 1;
+        game.guideHint = 0;
         game.state = "PLAYING";
         game.player.reset(game.map.spawn);
         game.render();
       }
     };
+    Object.defineProperty(root.CM.debug, "staticRebuilds", {
+      get() { return renderer.staticRebuilds; }
+    });
   }
   simulator.bindControls();
 
@@ -783,7 +786,7 @@
   if (new URLSearchParams(location.search).has("debug")) {
     document.getElementById("debugPanel").classList.remove("hidden");
     document.getElementById("debugVersion").textContent = `v${VERSION}`;
-    document.getElementById("debugModules").textContent = `Módulos: ${Object.keys(root.CM).filter(key => ["PDA", "Player", "Renderer", "UI", "Game", "Simulator", "LEVELS"].includes(key)).join(", ")} · mapas ${MAPS.length}`;
+    document.getElementById("debugModules").textContent = `Módulos: ${Object.keys(root.CM).filter(key => ["PDA", "Player", "Renderer", "UI", "Game", "Simulator", "LEVELS", "buildPath", "computeGuide"].includes(key)).join(", ")} · mapas ${MAPS.length} · static rebuilds ${root.CM.debug.staticRebuilds}`;
   }
 
   function frame(now) {

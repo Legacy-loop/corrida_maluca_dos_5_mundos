@@ -16,30 +16,12 @@
     { key: "A", order: 5 }
   ];
   const barrierLayouts = {
-    garage: {
-      spawn: { x: 45, y: 280 }, xs: [165, 320, 475, 630, 785],
-      gaps: [130, 430, 145, 415, 125], opening: 174
-    },
-    desert: {
-      spawn: { x: 45, y: 410 }, xs: [155, 315, 475, 635, 795],
-      gaps: [125, 430, 135, 420, 120], opening: 174
-    },
-    swamp: {
-      spawn: { x: 45, y: 165 }, xs: [135, 275, 415, 555, 695, 835],
-      gaps: [145, 415, 145, 415, 145, 415], opening: 168
-    },
-    snow: {
-      spawn: { x: 45, y: 400 }, xs: [150, 305, 460, 615, 780],
-      gaps: [125, 430, 145, 420, 120], opening: 174
-    },
-    track: {
-      spawn: { x: 45, y: 280 }, xs: [165, 330, 495, 660, 805],
-      gaps: [145, 420, 125, 435, 155], opening: 174
-    },
-    volcano: {
-      spawn: { x: 45, y: 145 }, xs: [155, 315, 475, 635, 795],
-      gaps: [420, 135, 410, 125, 430], opening: 174
-    }
+    garage: { spawn: { x: 45, y: 280 }, firstX: 145, spacing: 155, count: 5, thickness: 20, opening: 150, laneTopY: 155, laneBottomY: 405 },
+    desert: { spawn: { x: 45, y: 410 }, firstX: 150, spacing: 160, count: 5, thickness: 20, opening: 150, laneTopY: 155, laneBottomY: 405 },
+    swamp: { spawn: { x: 45, y: 165 }, firstX: 125, spacing: 135, count: 6, thickness: 20, opening: 150, laneTopY: 155, laneBottomY: 405 },
+    snow: { spawn: { x: 45, y: 400 }, firstX: 145, spacing: 155, count: 5, thickness: 20, opening: 150, laneTopY: 160, laneBottomY: 400 },
+    track: { spawn: { x: 45, y: 280 }, firstX: 145, spacing: 155, count: 5, thickness: 20, opening: 150, laneTopY: 150, laneBottomY: 410 },
+    volcano: { spawn: { x: 45, y: 145 }, firstX: 145, spacing: 155, count: 5, thickness: 20, opening: 160, laneTopY: 160, laneBottomY: 400 }
   };
   const PLAYER_STEP = 1 / 30;
   const CLEARANCE_RADIUS = PLAYER_RADIUS + 4;
@@ -68,30 +50,38 @@
 
   function createBarriers(layout) {
     const halfOpening = layout.opening / 2;
-    const thickness = layout.theme === "track" ? 28 : layout.theme === "swamp" ? 20 : 24;
-    return layout.xs.flatMap((x, index) => {
-      const gap = layout.gaps[index];
+    return Array.from({ length: layout.count }, (_, index) => layout.firstX + index * layout.spacing).flatMap((x, index) => {
+      const gap = index % 2 === 0 ? layout.laneTopY : layout.laneBottomY;
       return [
-        { x, y: 0, w: thickness, h: gap - halfOpening },
-        { x, y: gap + halfOpening, w: thickness, h: HEIGHT - gap - halfOpening }
+        { x, y: 0, w: layout.thickness, h: gap - halfOpening },
+        { x, y: gap + halfOpening, w: layout.thickness, h: HEIGHT - gap - halfOpening }
       ];
     });
   }
 
   function createWaypoints(layout) {
     const waypoints = [{ ...layout.spawn }];
-    const thickness = layout.theme === "track" ? 28 : layout.theme === "swamp" ? 20 : 24;
     let previousY = layout.spawn.y;
-    layout.xs.forEach((x, index) => {
-      const before = x - 40;
-      const after = Math.min(x + thickness + 30, WIDTH - 35);
-      const gap = layout.gaps[index];
+    const xs = Array.from({ length: layout.count }, (_, index) => layout.firstX + index * layout.spacing);
+    xs.forEach((x, index) => {
+      const before = x - layout.thickness / 2 - 40;
+      const after = Math.min(x + layout.thickness / 2 + 30, WIDTH - 35);
+      const gap = index % 2 === 0 ? layout.laneTopY : layout.laneBottomY;
       waypoints.push({ x: before, y: previousY }, { x: before, y: gap }, { x: after, y: gap });
       previousY = gap;
     });
-    const lastGap = layout.gaps[layout.gaps.length - 1];
+    const lastGap = (layout.count - 1) % 2 === 0 ? layout.laneTopY : layout.laneBottomY;
     waypoints.push({ x: WIDTH - 35, y: lastGap });
-    return waypoints;
+    return waypoints.filter((point, index, points) =>
+      index === 0 || point.x !== points[index - 1].x || point.y !== points[index - 1].y
+    ).filter((point, index, points) => {
+      if (index === 0 || index === points.length - 1) return true;
+      const before = points[index - 1];
+      const after = points[index + 1];
+      const cross = (point.x - before.x) * (after.y - point.y) -
+        (point.y - before.y) * (after.x - point.x);
+      return Math.abs(cross) > 0.001;
+    });
   }
 
   function pathLength(waypoints) {
@@ -153,6 +143,7 @@
     const mirrorRect = rect => ({ ...rect, y: HEIGHT - rect.y - rect.h });
     map.spawn = mirrorPoint(map.spawn);
     map.waypoints = map.waypoints.map(mirrorPoint);
+    map.path = { points: map.waypoints.map(point => ({ ...point })) };
     map.items = map.items.map(mirrorPoint);
     map.obstacles = map.obstacles.map(mirrorRect);
     map.gate = mirrorRect(map.gate);
@@ -168,8 +159,9 @@
     const layout = { ...source, theme };
     const waypoints = createWaypoints(layout);
     const obstacles = createBarriers(layout);
-    const lastGap = layout.gaps.at(-1);
-    const gate = { x: WIDTH - 55, y: lastGap - 40, w: 40, h: 80 };
+    const lastGap = (layout.count - 1) % 2 === 0 ? layout.laneTopY : layout.laneBottomY;
+    const lastBarrierRight = layout.firstX + (layout.count - 1) * layout.spacing + layout.thickness;
+    const gate = { x: Math.max(lastBarrierRight + 40, WIDTH - 55), y: lastGap - 40, w: 40, h: 80 };
     const map = {
       stage,
       theme,
@@ -181,7 +173,16 @@
       finish: finish ? { ...gate } : null,
       waypoints,
       pathLength: pathLength(waypoints),
-      path: { points: waypoints.map(point => ({ ...point })) }
+      path: { points: waypoints.map(point => ({ ...point })) },
+      roadWidth: 82,
+      regularGeometry: {
+        firstX: layout.firstX,
+        spacing: layout.spacing,
+        thickness: layout.thickness,
+        opening: layout.opening,
+        laneTopY: layout.laneTopY,
+        laneBottomY: layout.laneBottomY
+      }
     };
     return variant % 2 === 1 ? mirrorMap(map) : map;
   }
