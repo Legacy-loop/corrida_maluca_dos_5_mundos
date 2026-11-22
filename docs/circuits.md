@@ -6,7 +6,7 @@ pelas aberturas e chega ao portão. O Deserto da terceira fase do Rally maluco
 é a versão espelhada verticalmente do primeiro Deserto.
 
 Os comprimentos abaixo são a soma dos segmentos do caminho guiado (waypoints),
-em pixels do mapa de 960×560. A duração é arredondada para cima a 205 px/s,
+em pixels do mapa de 900×560. A duração é arredondada para cima a 205 px/s,
 velocidade de referência do carro; é uma estimativa de percurso, não um limite
 de tempo.
 
@@ -19,7 +19,7 @@ S ────┐    ┌────┐    ┌─── G
 
 | Aberturas por barreira (y) | Caminho | Barreiras | Comprimento | Duração estimada |
 |---|---:|---:|---:|---:|
-| 130, 430, 145, 415, 125 px | 17 waypoints | 5 | 2.115 px | 11 s |
+| 155 / 405 px, alternados | 12 waypoints | 5 | 1.945 px | 10 s |
 
 ## Deserto
 
@@ -30,7 +30,7 @@ S ──┐    ┌────┐    ┌─── G
 
 | Aberturas por barreira (y) | Caminho | Barreiras | Comprimento | Duração estimada |
 |---|---:|---:|---:|---:|
-| 125, 430, 135, 420, 120 px | 17 waypoints | 5 | 2.290 px | 12 s |
+| 155 / 405 px, alternados | 12 waypoints | 5 | 2.075 px | 11 s |
 
 ## Pântano
 
@@ -41,7 +41,7 @@ S ───┐   ┌───┐   ┌─── G
 
 | Aberturas por barreira (y) | Caminho | Barreiras | Comprimento | Duração estimada |
 |---|---:|---:|---:|---:|
-| 145, 415, 145, 415, 145, 415 px | 20 waypoints | 6 | 2.190 px | 11 s |
+| 155 / 405 px, alternados | 14 waypoints | 6 | 2.080 px | 11 s |
 
 ## Neve
 
@@ -52,7 +52,7 @@ S ──┐    ┌────┐    ┌─── G
 
 | Aberturas por barreira (y) | Caminho | Barreiras | Comprimento | Duração estimada |
 |---|---:|---:|---:|---:|
-| 125, 430, 145, 420, 120 px | 17 waypoints | 5 | 2.260 px | 12 s |
+| 160 / 400 px, alternados | 12 waypoints | 5 | 2.020 px | 10 s |
 
 ## Autódromo
 
@@ -63,7 +63,7 @@ S ───┐     ┌───┐     ┌── G
 
 | Aberturas por barreira (y) | Caminho | Barreiras | Comprimento | Duração estimada |
 |---|---:|---:|---:|---:|
-| 145, 420, 125, 435, 155 px | 17 waypoints | 5 | 2.115 px | 11 s |
+| 150 / 410 px, alternados | 12 waypoints | 5 | 1.990 px | 10 s |
 
 ## Vulcão
 
@@ -74,7 +74,7 @@ S ─────┐   ┌─────┐   ┌─ G
 
 | Aberturas por barreira (y) | Caminho | Barreiras | Comprimento | Duração estimada |
 |---|---:|---:|---:|---:|
-| 420, 135, 410, 125, 430 px | 17 waypoints | 5 | 2.245 px | 11 s |
+| 160 / 400 px, alternados | 12 waypoints | 5 | 1.795 px | 9 s |
 
 ## Validação de segurança
 
