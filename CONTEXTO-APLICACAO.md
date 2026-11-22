@@ -56,8 +56,9 @@ Trabalho_LFM2/
 | `js/challenge.js` | Três fases, mapas de rota e validação/solução de planos |
 | `js/pda.js` | Lógica pura, snapshots, restauração e export CommonJS |
 | `js/maps.js` | Mapas por tema, rotas configuráveis e validação de colisão/alcançabilidade |
+| `js/guidance.js` | Projeção, arco acumulado e cálculo independente do guia do carro |
 | `js/player.js` | Teclas, deslocamento por eixo, deslizamento e desencarceramento |
-| `js/renderer.js` | Canvas HiDPI, cenários, carro, itens e transição |
+| `js/renderer.js` | Canvas HiDPI, camada estática em cache, overlays, carro, itens e guia |
 | `js/ui.js` | HUD, pilha do jogo, histórico, mensagens e feedback |
 | `js/game.js` | Estados, coleta, missões, corrida, áudio e finais |
 | `js/sequenceSimulator.js` | Simulador independente com modos, execução e undo |
@@ -105,12 +106,18 @@ dinâmicos do PDA.
 ## 5. Mapas e colisões
 
 `js/maps.js` descreve seis circuitos por tema e monta as rotas clássicas e de
-desafio. Cada mapa tem barreiras e aberturas próprias, caminho de waypoints,
+desafio. Cada mapa tem geometria regular, barreiras e aberturas próprias, caminho de waypoints,
 spawn, portão e, no mundo final, chegada. O terceiro Rally reutiliza o Deserto
 espelhado verticalmente. A garagem comporta até oito equipamentos.
 `validateMap(map)` valida métricas de percurso, obstáculos, folga segura,
 alvos e alcançabilidade por busca BFS em grade. Comprimentos e tempos
 estimados estão em [docs/circuits.md](docs/circuits.md).
+
+O guia não usa índice de waypoint: `js/guidance.js` projeta o carro e o alvo
+na polilinha pelo comprimento de arco, produzindo chevrons ancorados no mundo
+e uma seta curta suavizada. O cenário estático é pintado uma vez em cache por
+tema, variante e DPR; a cada frame o renderer combina essa camada com itens,
+portal, guia e carro. `?debug=1&overlay=1` desenha grade, colisores e waypoints.
 
 O jogador move um eixo por vez para permitir deslizamento junto às paredes.
 Uma etapa de resolução de penetração desloca o carro para uma posição livre

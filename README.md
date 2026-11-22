@@ -24,6 +24,8 @@ lado do mapa, e **Detalhes técnicos** abre o estado e o histórico (também com
 - O modo guiado é padrão. Depois da primeira vitória, **Desafio** fica
   disponível no menu; escolha uma fase, monte o plano de coleta e consulte a
   rota durante a corrida quando precisar.
+- O guia amarelo aponta continuamente para o próximo item ou portão, sem travar
+  em curvas. Em `?debug=1&overlay=1`, waypoints e colisores ficam visíveis.
 
 ## Laboratório do PDA
 
@@ -51,6 +53,8 @@ Os testes verificam rotas do PDA, planos válidos e inválidos, metadados de
 falha, mensagens, snapshots e alcançabilidade dos mapas clássicos e de desafio.
 Os mapas são circuitos distintos, com caminho guiado, duração estimada,
 barreiras e folga de colisão medidas. Veja [docs/circuits.md](docs/circuits.md).
+Também são verificadas a projeção do guia, os chevrons ancorados e a estabilidade
+da camada estática da pista.
 
 Para instalar a dependência de desenvolvimento Playwright e executar o E2E
 em Chromium:
