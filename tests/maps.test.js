@@ -166,4 +166,67 @@ const signatures = MAPS.map(map => JSON.stringify([map.obstacles, map.waypoints]
 assert.equal(new Set(signatures).size, 6);
 assert.equal(new Set(MAPS.map(map => `${map.theme}:${map.variant}`)).size, 6);
 
+function assertRegularGeometry(map) {
+  const geometry = map.regularGeometry;
+  assert.ok(geometry);
+  for (const value of Object.values(geometry)) assert.equal(value % 5, 0);
+  const upperBottoms = new Set();
+  const lowerTops = new Set();
+  const widths = new Set();
+  map.obstacles.forEach((block, index) => {
+    assert.equal(block.x % 5, 0);
+    assert.equal(block.y % 5, 0);
+    assert.equal(block.w % 5, 0);
+    assert.equal(block.h % 5, 0);
+    widths.add(block.w);
+    if (block.y === 0) upperBottoms.add(block.y + block.h);
+    else lowerTops.add(block.y);
+  });
+  assert.ok(upperBottoms.size <= 2);
+  assert.ok(lowerTops.size <= 2);
+  assert.equal(widths.size, 1);
+  for (let index = 1; index < map.waypoints.length; index++) {
+    assert.ok(Math.hypot(
+      map.waypoints[index].x - map.waypoints[index - 1].x,
+      map.waypoints[index].y - map.waypoints[index - 1].y
+    ) > 0);
+  }
+  for (let index = 1; index < map.waypoints.length - 1; index++) {
+    const before = map.waypoints[index - 1];
+    const point = map.waypoints[index];
+    const after = map.waypoints[index + 1];
+    const cross = (point.x - before.x) * (after.y - point.y) -
+      (point.y - before.y) * (after.x - point.x);
+    assert.ok(Math.abs(cross) > 0.001);
+  }
+  const lastBarrierRight = Math.max(...map.obstacles.map(block => block.x + block.w));
+  assert.ok((map.finish || map.gate).x - lastBarrierRight >= 40);
+
+  for (let index = 1; index < map.waypoints.length; index++) {
+    const from = map.waypoints[index - 1];
+    const to = map.waypoints[index];
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    const steps = Math.max(1, Math.ceil(distance / 6));
+    for (let step = 0; step <= steps; step++) {
+      const progress = step / steps;
+      const point = {
+        x: from.x + (to.x - from.x) * progress,
+        y: from.y + (to.y - from.y) * progress
+      };
+      map.obstacles.forEach(block => {
+        const nearestX = Math.max(block.x, Math.min(point.x, block.x + block.w));
+        const nearestY = Math.max(block.y, Math.min(point.y, block.y + block.h));
+        const clearance = Math.hypot(point.x - nearestX, point.y - nearestY);
+        assert.ok(clearance - (map.roadWidth / 2) >= 6 - 0.001,
+          `${map.theme}: road overlaps obstacle at ${point.x},${point.y}`);
+      });
+    }
+  }
+  assert.deepEqual(map.path.points, map.waypoints);
+}
+
+MAPS.forAll = undefined;
+MAPS.forEach(assertRegularGeometry);
+phaseThreeMaps.filter(map => map.theme === "desert").forEach(assertRegularGeometry);
+
 console.log("maps.test.js: six distinct circuits, measured paths, mirrored variants, and 5/8-item garages passed");

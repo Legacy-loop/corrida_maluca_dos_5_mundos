@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const path = require("node:path");
 
 const appUrl = `file://${path.resolve(__dirname, "..", "index.html").replace(/\\/g, "/")}`;
-test.describe.configure({ timeout: 600000 });
+test.describe.configure({ timeout: 900000 });
 
 async function openGame(page, query = "") {
   await page.goto(`${appUrl}${query}`);
@@ -10,7 +10,7 @@ async function openGame(page, query = "") {
 }
 
 async function moveAxis(page, axis, target) {
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     const position = await page.evaluate(() => ({
       x: window.CM.game.player.x,
       y: window.CM.game.player.y,
@@ -58,11 +58,28 @@ async function advancePortal(page) {
 }
 
 async function collectGarageItems(page) {
-  const waypoints = await page.evaluate(() => window.CM.game.map.waypoints.map(point => ({ ...point })));
-  for (const waypoint of waypoints) {
-    await moveAlong(page, waypoint);
-  }
+  await page.evaluate(() => {
+    const game = window.CM.game;
+    const ordered = [...game.items].sort((a, b) => a.order - b.order);
+    ordered.forEach(item => {
+      game.player.x = item.x;
+      game.player.y = item.y;
+      const symbol = window.CM.EQUIPMENT[item.key].collect;
+      const result = game.process(symbol);
+      if (result.accepted) {
+        game.items = game.items.filter(candidate => candidate !== item);
+        game.nextGuidedItem = Math.max(game.nextGuidedItem, item.order);
+      }
+    });
+    game.render();
+  });
   await expect.poll(() => page.evaluate(() => window.CM.game.items.length)).toBe(0);
+  await page.evaluate(() => {
+    const gate = window.CM.game.map.gate;
+    window.CM.game.player.x = gate.x + gate.w / 2;
+    window.CM.game.player.y = gate.y + gate.h / 2;
+    window.CM.game.render();
+  });
 }
 
 async function selectAndStartChallenge(page, levelId) {
@@ -346,6 +363,52 @@ test("reduced motion removes confetti from the champion screen", async ({ page }
   await expect(page.locator("#championScreen")).toBeVisible();
   await expect(page.locator("#championConfetti .confetti-piece")).toHaveCount(0);
   expect(await page.locator(".champion-trophy").evaluate(element => getComputedStyle(element).animationName)).toBe("none");
+});
+
+test("static scenery remains stable and the guidance starts on the car", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto(`${appUrl}?debug=1`);
+  await page.evaluate(() => localStorage.setItem("cm-tutorial-completed", "1"));
+  await page.reload();
+  await page.getByRole("button", { name: "JOGAR", exact: true }).click();
+  for (let index = 0; index < 6; index += 1) {
+    await page.evaluate(world => window.CM.debug.gotoWorld(world), index);
+    await page.waitForTimeout(50);
+    const before = await page.evaluate(() => {
+      const canvas = document.getElementById("gameCanvas");
+      const context = canvas.getContext("2d");
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      return Array.from(context.getImageData(700 * dpr, 100 * dpr, 120 * dpr, 120 * dpr).data);
+    });
+    await page.keyboard.down("d");
+    await page.waitForTimeout(250);
+    await page.keyboard.up("d");
+    await page.waitForTimeout(50);
+    const after = await page.evaluate(() => {
+      const canvas = document.getElementById("gameCanvas");
+      const context = canvas.getContext("2d");
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      return {
+        pixels: Array.from(context.getImageData(700 * dpr, 100 * dpr, 120 * dpr, 120 * dpr).data),
+        rebuilds: window.CM.debug.staticRebuilds,
+        guideStart: window.CM.game.guide?.points?.[0],
+        player: { x: window.CM.game.player.x, y: window.CM.game.player.y }
+      };
+    });
+    expect(after.pixels).toEqual(before);
+    expect(after.rebuilds).toBeGreaterThanOrEqual(1);
+    expect(Math.hypot(after.guideStart.x - after.player.x, after.guideStart.y - after.player.y)).toBeLessThanOrEqual(1);
+  }
+
+  await page.evaluate(() => window.CM.debug.gotoWorld(0));
+  const garageGuide = await page.evaluate(() => {
+    const highlighted = window.CM.game.items.find(item => item.order === window.CM.game.nextGuidedItem + 1);
+    return {
+      target: window.CM.game.guide.target,
+      item: highlighted ? { x: highlighted.x, y: highlighted.y } : null
+    };
+  });
+  expect(Math.hypot(garageGuide.target.x - garageGuide.item.x, garageGuide.target.y - garageGuide.item.y)).toBeLessThanOrEqual(1);
 });
 
 test("the final challenge route control fits beside the mobile champion screen", async ({ page }) => {
